@@ -2,22 +2,29 @@ package com.example.bluetoothdemo
 
 import android.Manifest
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.widget.Button
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 
 class MainActivity : AppCompatActivity() {
+    private lateinit var pairedDeviceButton: Button
+    private lateinit var pairedDeviceProfile: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        pairedDeviceButton = findViewById(R.id.pairedDeviceButton)
+        pairedDeviceProfile = findViewById(R.id.pairedDeviceProfile)
 
         // The BluetoothAdapter represents the device's own Bluetooth adapter (the Bluetooth radio)
         // and is required for any and all Bluetooth activity
@@ -25,13 +32,60 @@ class MainActivity : AppCompatActivity() {
         val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
 
         // check if device supports bluetooth
+        checkBluetoothSupported(bluetoothAdapter)
+
+        // check if bluetooth is enabled
+        checkBluetoothEnable(bluetoothAdapter)
+
+        // check if desired device is already known
+        checkPairedDevices(bluetoothAdapter)
+    }
+
+    private fun checkPairedDevices(bluetoothAdapter: BluetoothAdapter?) {
+        val requestMultiplePermissions =
+            registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+                val pairedDevices: Set<BluetoothDevice>? = bluetoothAdapter?.bondedDevices
+                pairedDevices?.forEach { device ->
+                    val deviceName = device.name
+                    val deviceHardwareAddress = device.address // MAC address
+                    pairedDeviceProfile.text = "$deviceName, $deviceHardwareAddress"
+                }
+            }
+        pairedDeviceButton.setOnClickListener {
+            if (ActivityCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.BLUETOOTH_CONNECT
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    // for android 12 and higher
+                    requestMultiplePermissions.launch(
+                        arrayOf(
+                            Manifest.permission.BLUETOOTH_SCAN,
+                            Manifest.permission.BLUETOOTH_CONNECT
+                        )
+                    )
+                }
+            } else {
+                val pairedDevices: Set<BluetoothDevice>? = bluetoothAdapter?.bondedDevices
+                pairedDevices?.forEach { device ->
+                    val deviceName = device.name
+                    val deviceHardwareAddress = device.address // MAC address
+                    pairedDeviceProfile.text = "$deviceName, $deviceHardwareAddress"
+                }
+            }
+        }
+    }
+
+    private fun checkBluetoothSupported(bluetoothAdapter: BluetoothAdapter?) {
         if (bluetoothAdapter == null) {
             // Device doesn't support Bluetooth
             Toast.makeText(this, "device doesn't support Bluetooth", Toast.LENGTH_SHORT).show()
             finish()
         }
+    }
 
-        // check if bluetooth is enabled
+    private fun checkBluetoothEnable(bluetoothAdapter: BluetoothAdapter?) {
         val requestBluetooth =
             registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
                 if (result.resultCode == RESULT_OK) {
@@ -52,7 +106,7 @@ class MainActivity : AppCompatActivity() {
                 bluetoothAdapter?.enable()
             }
 
-        if (bluetoothAdapter?.isEnabled == false){
+        if (bluetoothAdapter?.isEnabled == false) {
             if (ActivityCompat.checkSelfPermission(
                     this,
                     Manifest.permission.BLUETOOTH_CONNECT
@@ -73,6 +127,8 @@ class MainActivity : AppCompatActivity() {
                     requestBluetooth.launch(enableBtIntent)
                 }
                 return
+            } else {
+                bluetoothAdapter.enable()
             }
         }
     }
