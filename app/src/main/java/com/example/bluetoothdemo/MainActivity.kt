@@ -15,21 +15,29 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 
 class MainActivity : AppCompatActivity() {
     private lateinit var pairedDeviceButton: Button
-    private lateinit var pairedDeviceProfile: TextView
+    private lateinit var pairedDeviceRecyclerView: RecyclerView
+    private lateinit var pairedDevicesAdapter: PairedDevicesAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
         pairedDeviceButton = findViewById(R.id.pairedDeviceButton)
-        pairedDeviceProfile = findViewById(R.id.pairedDeviceProfile)
+        pairedDeviceRecyclerView = findViewById(R.id.pairedDeviceRecyclerView)
+        pairedDevicesAdapter = PairedDevicesAdapter()
 
         // The BluetoothAdapter represents the device's own Bluetooth adapter (the Bluetooth radio)
         // and is required for any and all Bluetooth activity
         val bluetoothManager: BluetoothManager = getSystemService(BluetoothManager::class.java)
         val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
+
+        pairedDeviceRecyclerView.layoutManager = LinearLayoutManager(this)
+        pairedDeviceRecyclerView.adapter = pairedDevicesAdapter
 
         // check if device supports bluetooth
         checkBluetoothSupported(bluetoothAdapter)
@@ -48,7 +56,6 @@ class MainActivity : AppCompatActivity() {
                 pairedDevices?.forEach { device ->
                     val deviceName = device.name
                     val deviceHardwareAddress = device.address // MAC address
-                    pairedDeviceProfile.text = "$deviceName, $deviceHardwareAddress"
                 }
             }
         pairedDeviceButton.setOnClickListener {
@@ -71,7 +78,13 @@ class MainActivity : AppCompatActivity() {
                 pairedDevices?.forEach { device ->
                     val deviceName = device.name
                     val deviceHardwareAddress = device.address // MAC address
-                    pairedDeviceProfile.text = "$deviceName, $deviceHardwareAddress"
+                }
+                val myPairedDevices = pairedDevices?.map {
+                    PairedDevice(it.name, it.address)
+                }
+                if (myPairedDevices != null) {
+                    pairedDevicesAdapter.updatePairedDevices(myPairedDevices)
+                    pairedDeviceRecyclerView.adapter = pairedDevicesAdapter
                 }
             }
         }
