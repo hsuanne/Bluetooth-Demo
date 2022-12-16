@@ -2,9 +2,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- specify that ble is a hardware this app requires -->
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="true"/>
+
     <!-- target Android 12 or higher -->
     <uses-permission android:name="android.permission.BLUETOOTH"/>
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
     <!-- target Android 11 or lower -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
