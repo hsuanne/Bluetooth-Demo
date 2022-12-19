@@ -15,21 +15,37 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 
 class MainActivity : AppCompatActivity() {
     private lateinit var pairedDeviceButton: Button
-    private lateinit var pairedDeviceProfile: TextView
+    private lateinit var pairedDeviceRecyclerView: RecyclerView
+    private lateinit var pairedDevicesAdapter: PairedDevicesAdapter
+    private lateinit var mainViewModel: MainViewModel
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        mainViewModel = MainViewModel()
+
         pairedDeviceButton = findViewById(R.id.pairedDeviceButton)
-        pairedDeviceProfile = findViewById(R.id.pairedDeviceProfile)
+        pairedDeviceRecyclerView = findViewById(R.id.pairedDeviceRecyclerView)
+        pairedDevicesAdapter = PairedDevicesAdapter()
 
         // The BluetoothAdapter represents the device's own Bluetooth adapter (the Bluetooth radio)
         // and is required for any and all Bluetooth activity
         val bluetoothManager: BluetoothManager = getSystemService(BluetoothManager::class.java)
         val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
+
+        pairedDeviceRecyclerView.layoutManager = LinearLayoutManager(this)
+        pairedDeviceRecyclerView.adapter = pairedDevicesAdapter
+
+        mainViewModel.pairedDevices.observe(this) {
+            pairedDevicesAdapter.submitList(it)
+        }
 
         // check if device supports bluetooth
         checkBluetoothSupported(bluetoothAdapter)
@@ -43,14 +59,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun checkPairedDevices(bluetoothAdapter: BluetoothAdapter?) {
         val requestMultiplePermissions =
-            registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-                val pairedDevices: Set<BluetoothDevice>? = bluetoothAdapter?.bondedDevices
-                pairedDevices?.forEach { device ->
-                    val deviceName = device.name
-                    val deviceHardwareAddress = device.address // MAC address
-                    pairedDeviceProfile.text = "$deviceName, $deviceHardwareAddress"
+            registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+                if (permissions.entries.any { !it.value }) {
+                    Toast.makeText(this, "Please enable permissions for bluetooth.", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "Permissions enabled, please click 'paired devices' again.", Toast.LENGTH_SHORT).show()
+                    bluetoothAdapter?.enable()
                 }
             }
+
         pairedDeviceButton.setOnClickListener {
             if (ActivityCompat.checkSelfPermission(
                     this,
@@ -67,12 +84,13 @@ class MainActivity : AppCompatActivity() {
                     )
                 }
             } else {
-                val pairedDevices: Set<BluetoothDevice>? = bluetoothAdapter?.bondedDevices
-                pairedDevices?.forEach { device ->
-                    val deviceName = device.name
-                    val deviceHardwareAddress = device.address // MAC address
-                    pairedDeviceProfile.text = "$deviceName, $deviceHardwareAddress"
-                }
+                bluetoothAdapter?.bondedDevices
+                    ?.map {
+                        PairedDevice(it.name, it.address)
+                    }
+                    .apply {
+                        if (this != null) mainViewModel.updatePairedDevices(this)
+                    }
             }
         }
     }
@@ -102,8 +120,12 @@ class MainActivity : AppCompatActivity() {
             registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
                 permissions.entries.forEach {
                     Log.d("Bluetooth MainActivity", "${it.key} = ${it.value}")
+                    if (!it.value) {
+                        Toast.makeText(this, "Please enable permissions for bluetooth.", Toast.LENGTH_SHORT).show()
+                    } else {
+                        bluetoothAdapter?.enable()
+                    }
                 }
-                bluetoothAdapter?.enable()
             }
 
         if (bluetoothAdapter?.isEnabled == false) {
@@ -120,6 +142,7 @@ class MainActivity : AppCompatActivity() {
                             Manifest.permission.BLUETOOTH_CONNECT
                         )
                     )
+                    return
                 } else {
                     // for android 11 and lower
                     // todo: not yet tested, but should work...
