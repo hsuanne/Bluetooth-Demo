@@ -58,13 +58,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkPairedDevices(bluetoothAdapter: BluetoothAdapter?) {
-        checkBluetoothEnable(bluetoothAdapter)
         val requestMultiplePermissions =
             registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
                 if (permissions.entries.any { !it.value }) {
                     Toast.makeText(this, "Please enable permissions for bluetooth.", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(this, "Permissions enabled, please click 'paired devices' again.", Toast.LENGTH_SHORT).show()
+                    bluetoothAdapter?.enable()
                 }
             }
 
