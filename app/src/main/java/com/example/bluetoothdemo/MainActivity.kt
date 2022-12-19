@@ -55,6 +55,11 @@ class MainActivity : AppCompatActivity() {
 
         // check if desired device is already known
         checkPairedDevices(bluetoothAdapter)
+
+        // start discovering devices
+        // The process is asynchronous and returns a boolean value indicating whether discovery has successfully started.
+        // The discovery process usually involves an inquiry scan of about 12 seconds
+
     }
 
     private fun checkPairedDevices(bluetoothAdapter: BluetoothAdapter?) {
