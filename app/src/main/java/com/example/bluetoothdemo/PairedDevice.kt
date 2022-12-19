@@ -1,6 +1,6 @@
 package com.example.bluetoothdemo
 
-class PairedDevice(
+data class PairedDevice(
     val deviceName: String,
     val deviceMacAddress: String,
 ) {
