@@ -4,9 +4,18 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 
 class MainViewModel: ViewModel() {
-    val pairedDevices = MutableLiveData<List<PairedDevice>>()
+    val foundDevices = MutableLiveData<List<FoundDevice>>()
+    val discoveredDevices = MutableLiveData<List<FoundDevice>>()
 
-    fun updatePairedDevices(pairedDevices: List<PairedDevice>) {
-        this.pairedDevices.value = pairedDevices
+    fun updatePairedDevices(foundDevices: List<FoundDevice>) {
+        this.foundDevices.value = foundDevices
+    }
+
+    fun addToDiscoveredDevices(discoveredDevice: FoundDevice) {
+        discoveredDevices.value = discoveredDevices.value?.plus(discoveredDevice)?: listOf()
+    }
+
+    fun clearDiscoveredDevices() {
+        discoveredDevices.value = listOf()
     }
 }

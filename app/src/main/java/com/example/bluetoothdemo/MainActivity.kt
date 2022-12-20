@@ -13,7 +13,6 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.widget.Button
-import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -25,7 +24,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pairedDeviceButton: Button
     private lateinit var discoverDeviceButton: Button
     private lateinit var pairedDeviceRecyclerView: RecyclerView
+    private lateinit var discoveredDeviceRecyclerView: RecyclerView
     private lateinit var pairedDevicesAdapter: PairedDevicesAdapter
+    private lateinit var discoveredDevicesAdapter: DiscoveredDevicesAdapter
     private lateinit var mainViewModel: MainViewModel
 
 
@@ -38,7 +39,9 @@ class MainActivity : AppCompatActivity() {
         pairedDeviceButton = findViewById(R.id.pairedDeviceButton)
         discoverDeviceButton = findViewById(R.id.discoverDeviceButton)
         pairedDeviceRecyclerView = findViewById(R.id.pairedDeviceRecyclerView)
+        discoveredDeviceRecyclerView = findViewById(R.id.discoverDeviceRecyclerView)
         pairedDevicesAdapter = PairedDevicesAdapter()
+        discoveredDevicesAdapter = DiscoveredDevicesAdapter()
 
         // The BluetoothAdapter represents the device's own Bluetooth adapter (the Bluetooth radio)
         // and is required for any and all Bluetooth activity
@@ -48,8 +51,15 @@ class MainActivity : AppCompatActivity() {
         pairedDeviceRecyclerView.layoutManager = LinearLayoutManager(this)
         pairedDeviceRecyclerView.adapter = pairedDevicesAdapter
 
-        mainViewModel.pairedDevices.observe(this) {
+        discoveredDeviceRecyclerView.layoutManager = LinearLayoutManager(this)
+        discoveredDeviceRecyclerView.adapter = discoveredDevicesAdapter
+
+        mainViewModel.foundDevices.observe(this) {
             pairedDevicesAdapter.submitList(it)
+        }
+
+        mainViewModel.discoveredDevices.observe(this) {
+            discoveredDevicesAdapter.submitList(it)
         }
 
         // check if device supports bluetooth
@@ -68,8 +78,6 @@ class MainActivity : AppCompatActivity() {
         val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
         registerReceiver(receiver, filter)
         discoverDevices(bluetoothAdapter)
-
-
     }
 
     override fun onDestroy() {
@@ -95,6 +103,8 @@ class MainActivity : AppCompatActivity() {
                     // object and its info from the Intent.
                     val device: BluetoothDevice? =
                         intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                    Log.d("MainActivity onReceive: ", "${device?.name}, ${device?.address}")
+
                     if (ActivityCompat.checkSelfPermission(
                             this@MainActivity,
                             Manifest.permission.BLUETOOTH_CONNECT
@@ -111,9 +121,12 @@ class MainActivity : AppCompatActivity() {
                         }
                         return
                     }
-                    println("qwer: ${device?.name}, ${device?.address}")
-                    val deviceName = device?.name
-                    val deviceHardwareAddress = device?.address // MAC address
+                    device?.let {
+                        val deviceName = device.name?: "Unknown"
+                        val deviceHardwareAddress = device.address
+                        val discoveredDevice = FoundDevice(deviceName, deviceHardwareAddress)
+                        mainViewModel.addToDiscoveredDevices(discoveredDevice)
+                    }
                 }
             }
         }
@@ -123,7 +136,7 @@ class MainActivity : AppCompatActivity() {
         val requestMultiplePermissions =
             registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
                 permissions.entries.forEach {
-                    println("Bluetooth discoverDevices, ${it.key} = ${it.value}")
+                    Log.d("MainActivity discoverDevices","Bluetooth discoverDevices, ${it.key} = ${it.value}")
                     if (!it.value) {
                         if (it.key == "android.permission.ACCESS_FINE_LOCATION"){
                             Toast.makeText(this, "Please enable permissions for location.", Toast.LENGTH_SHORT).show()
@@ -137,6 +150,7 @@ class MainActivity : AppCompatActivity() {
             }
 
         discoverDeviceButton.setOnClickListener{
+            mainViewModel.clearDiscoveredDevices()
             if (ActivityCompat.checkSelfPermission(
                     this,
                     Manifest.permission.ACCESS_FINE_LOCATION
@@ -197,7 +211,7 @@ class MainActivity : AppCompatActivity() {
                 if (bluetoothAdapter?.isEnabled == false) bluetoothAdapter.enable()
                 bluetoothAdapter?.bondedDevices
                     ?.map {
-                        PairedDevice(it.name, it.address)
+                        FoundDevice(it.name, it.address)
                     }
                     .apply {
                         if (this != null) mainViewModel.updatePairedDevices(this)
