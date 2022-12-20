@@ -144,7 +144,7 @@ class MainActivity : AppCompatActivity() {
                             Toast.makeText(this, "Please enable permissions for bluetooth scan.", Toast.LENGTH_SHORT).show()
                         }
                     } else {
-                        bluetoothAdapter?.enable()
+                        if (bluetoothAdapter?.isEnabled == false) bluetoothAdapter.enable()
                     }
                 }
             }
@@ -160,7 +160,6 @@ class MainActivity : AppCompatActivity() {
                     Manifest.permission.BLUETOOTH_SCAN
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
-                Toast.makeText(this, "Please enable permissions for coarse location.", Toast.LENGTH_SHORT).show()
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     // for android 12 and higher
                     requestMultiplePermissions.launch(
