@@ -20,11 +20,33 @@
         android:layout_width="match_parent"
         android:layout_height="200dp"
         android:layout_marginTop="10dp"
-        android:padding="12dp"
+        android:paddingHorizontal="12dp"
         tools:listitem="@layout/item_paired_devices"
         tools:itemCount="10"
         app:layout_constraintTop_toBottomOf="@id/pairedDeviceButton"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
+
+    <Button
+        android:id="@+id/discoverDeviceButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Discover Devices"
+        android:layout_marginTop="10dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/pairedDeviceRecyclerView" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/discoverDeviceRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="10dp"
+        android:paddingHorizontal="12dp"
+        tools:listitem="@layout/item_paired_devices"
+        tools:itemCount="10"
+        app:layout_constraintTop_toBottomOf="@id/discoverDeviceButton"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
