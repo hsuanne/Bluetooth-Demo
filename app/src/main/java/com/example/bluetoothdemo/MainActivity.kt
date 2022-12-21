@@ -23,12 +23,12 @@ import androidx.recyclerview.widget.RecyclerView
 class MainActivity : AppCompatActivity() {
     private lateinit var pairedDeviceButton: Button
     private lateinit var discoverDeviceButton: Button
+    private lateinit var hostButton: Button
     private lateinit var pairedDeviceRecyclerView: RecyclerView
     private lateinit var discoveredDeviceRecyclerView: RecyclerView
     private lateinit var pairedDevicesAdapter: PairedDevicesAdapter
     private lateinit var discoveredDevicesAdapter: DiscoveredDevicesAdapter
     private lateinit var mainViewModel: MainViewModel
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,6 +38,7 @@ class MainActivity : AppCompatActivity() {
 
         pairedDeviceButton = findViewById(R.id.pairedDeviceButton)
         discoverDeviceButton = findViewById(R.id.discoverDeviceButton)
+        hostButton = findViewById(R.id.hostButton)
         pairedDeviceRecyclerView = findViewById(R.id.pairedDeviceRecyclerView)
         discoveredDeviceRecyclerView = findViewById(R.id.discoverDeviceRecyclerView)
         pairedDevicesAdapter = PairedDevicesAdapter()
@@ -78,11 +79,26 @@ class MainActivity : AppCompatActivity() {
         val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
         registerReceiver(receiver, filter)
         discoverDevices(bluetoothAdapter)
+
+        // Enabling discoverability
+        // this is only necessary when you want your app to host a server socket that accepts incoming connections
+        // however, it's better to let app be able to host, so that we can ensure that app can accept incoming connections
+        enableDiscoverability()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         unregisterReceiver(receiver)
+    }
+
+    private fun enableDiscoverability() {
+        hostButton.setOnClickListener {
+            val requestCode = 1;
+            val discoverableIntent: Intent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
+                putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300)
+            }
+            startActivityForResult(discoverableIntent, requestCode)
+        }
     }
 
     // Create a BroadcastReceiver for ACTION_FOUND.
