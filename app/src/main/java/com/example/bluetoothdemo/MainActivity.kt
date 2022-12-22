@@ -1,10 +1,9 @@
 package com.example.bluetoothdemo
 
 import android.Manifest
-import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothManager
+import android.bluetooth.*
 import android.content.BroadcastReceiver
+import android.content.ContentValues.TAG
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -19,6 +18,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import java.io.IOException
+import java.util.*
+import java.util.UUID.fromString
 
 class MainActivity : AppCompatActivity() {
     private lateinit var pairedDeviceButton: Button
@@ -80,10 +82,13 @@ class MainActivity : AppCompatActivity() {
         registerReceiver(receiver, filter)
         discoverDevices(bluetoothAdapter)
 
-        // Enabling discoverability
+        // Enabling discoverability (= serve as host to let other devices find you)
         // this is only necessary when you want your app to host a server socket that accepts incoming connections
         // however, it's better to let app be able to host, so that we can ensure that app can accept incoming connections
         enableDiscoverability()
+
+        // Connect as a server
+        connectAsServer(bluetoothAdapter)
     }
 
     override fun onDestroy() {
@@ -91,11 +96,40 @@ class MainActivity : AppCompatActivity() {
         unregisterReceiver(receiver)
     }
 
+    private fun connectAsServer(bluetoothAdapter: BluetoothAdapter?) {
+        AcceptThread(bluetoothAdapter).start()
+    }
+
     private fun enableDiscoverability() {
+        val requestMultiplePermissions =
+            registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+                if (permissions.entries.any { !it.value }) {
+                    Toast.makeText(this@MainActivity, "Please enable permissions for bluetooth.", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this@MainActivity, "Permissions enabled, please click 'serve as host' again.", Toast.LENGTH_SHORT).show()
+                }
+            }
+
         hostButton.setOnClickListener {
             val requestCode = 1;
             val discoverableIntent: Intent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
-                putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300)
+                putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 10)
+            }
+            if (ActivityCompat.checkSelfPermission(
+                    this@MainActivity,
+                    Manifest.permission.BLUETOOTH_CONNECT
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    // for android 12 and higher
+                    requestMultiplePermissions.launch(
+                        arrayOf(
+                            Manifest.permission.BLUETOOTH_SCAN,
+                            Manifest.permission.BLUETOOTH_CONNECT
+                        )
+                    )
+                }
+                return@setOnClickListener
             }
             startActivityForResult(discoverableIntent, requestCode)
         }
@@ -160,7 +194,8 @@ class MainActivity : AppCompatActivity() {
                             Toast.makeText(this, "Please enable permissions for bluetooth scan.", Toast.LENGTH_SHORT).show()
                         }
                     } else {
-                        if (bluetoothAdapter?.isEnabled == false) bluetoothAdapter.enable()
+                        if (it.key != "android.permission.ACCESS_FINE_LOCATION" && bluetoothAdapter?.isEnabled == false) bluetoothAdapter.enable()
+                        Toast.makeText(this, "Permissions enabled, please click 'discover devices' again.", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -294,5 +329,85 @@ class MainActivity : AppCompatActivity() {
                 bluetoothAdapter.enable()
             }
         }
+    }
+
+    private fun getBluetoothSocket(bluetoothAdapter: BluetoothAdapter?): BluetoothServerSocket? {
+        val requestMultiplePermissions =
+            registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+                permissions.entries.forEach {
+                    Log.d("Bluetooth MainActivity", "${it.key} = ${it.value}")
+                    if (!it.value) {
+                        Toast.makeText(this, "Please enable permissions for bluetooth.", Toast.LENGTH_SHORT).show()
+                    } else {
+                        bluetoothAdapter?.enable()
+                    }
+                }
+            }
+
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.BLUETOOTH_CONNECT
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                // for android 12 and higher
+                requestMultiplePermissions.launch(
+                    arrayOf(
+                        Manifest.permission.BLUETOOTH_SCAN,
+                        Manifest.permission.BLUETOOTH_CONNECT
+                    )
+                )
+                return null
+            }
+        }
+        // get a bluetoothSocket
+        val mmServerSocket: BluetoothServerSocket? by lazy(LazyThreadSafetyMode.NONE) {
+            bluetoothAdapter?.listenUsingInsecureRfcommWithServiceRecord(NAME, MY_UUID)
+        }
+        return mmServerSocket
+    }
+
+    private inner class AcceptThread(bluetoothAdapter: BluetoothAdapter?) : Thread() {
+        val mmServerSocket = getBluetoothSocket(bluetoothAdapter)
+
+        override fun run() {
+            // Keep listening until exception occurs or a socket is returned.
+            var shouldLoop = true
+            while (shouldLoop) {
+                val socket: BluetoothSocket? = try {
+                    // start listening for connection requests
+                    // accept() is a blocking call, so do not execute it on UI thread!
+                    mmServerSocket?.accept()
+                } catch (e: IOException) {
+                    Log.e(TAG, "Socket's accept() method failed", e)
+                    shouldLoop = false
+                    null
+                }
+                socket?.also {
+                    manageMyConnectedSocket(it)
+                    // call close() immediately after finding a socket
+                    mmServerSocket?.close()
+                    shouldLoop = false
+                }
+            }
+        }
+
+        private fun manageMyConnectedSocket(bluetoothSocket: BluetoothSocket) {
+            // todo: transfer data
+        }
+
+        // Closes the connect socket and causes the thread to finish.
+        fun cancel() {
+            try {
+                mmServerSocket?.close()
+            } catch (e: IOException) {
+                Log.e(TAG, "Could not close the connect socket", e)
+            }
+        }
+    }
+
+    companion object {
+        const val NAME = "BluetoothDemo"
+        val MY_UUID: UUID = fromString("ca94f29c-ec41-4d46-9392-64188ab9b55e")
     }
 }

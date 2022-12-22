@@ -55,7 +55,6 @@
         android:layout_height="wrap_content"
         android:text="serve as \nhost"
         android:textAlignment="center"
-        android:backgroundTint="@color/linen"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"/>
 
