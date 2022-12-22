@@ -82,14 +82,13 @@ class MainActivity : AppCompatActivity() {
         registerReceiver(receiver, filter)
         discoverDevices(bluetoothAdapter)
 
-        // Enabling discoverability
+        // Enabling discoverability (= serve as host to let other devices find you)
         // this is only necessary when you want your app to host a server socket that accepts incoming connections
         // however, it's better to let app be able to host, so that we can ensure that app can accept incoming connections
         enableDiscoverability()
 
         // Connect as a server
         connectAsServer(bluetoothAdapter)
-
     }
 
     override fun onDestroy() {
@@ -195,8 +194,8 @@ class MainActivity : AppCompatActivity() {
                             Toast.makeText(this, "Please enable permissions for bluetooth scan.", Toast.LENGTH_SHORT).show()
                         }
                     } else {
-                        if (bluetoothAdapter?.isEnabled == false) bluetoothAdapter.enable()
-                        Toast.makeText(this, "Permissions enabled, please click 'paired devices' again.", Toast.LENGTH_SHORT).show()
+                        if (it.key != "android.permission.ACCESS_FINE_LOCATION" && bluetoothAdapter?.isEnabled == false) bluetoothAdapter.enable()
+                        Toast.makeText(this, "Permissions enabled, please click 'discover devices' again.", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -394,7 +393,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         private fun manageMyConnectedSocket(bluetoothSocket: BluetoothSocket) {
-            println("qwer: manageMyConnectedSocket")
+            // todo: transfer data
         }
 
         // Closes the connect socket and causes the thread to finish.
