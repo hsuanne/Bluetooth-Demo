@@ -88,7 +88,7 @@ class MainActivity : AppCompatActivity() {
         enableDiscoverability()
 
         // Connect as a server
-
+        connectAsServer(bluetoothAdapter)
 
     }
 
@@ -97,7 +97,7 @@ class MainActivity : AppCompatActivity() {
         unregisterReceiver(receiver)
     }
 
-    private fun connectAsServer(bluetoothAdapter: BluetoothAdapter) {
+    private fun connectAsServer(bluetoothAdapter: BluetoothAdapter?) {
         AcceptThread(bluetoothAdapter).start()
     }
 
@@ -332,7 +332,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun getBluetoothSocket(bluetoothAdapter: BluetoothAdapter): BluetoothServerSocket? {
+    private fun getBluetoothSocket(bluetoothAdapter: BluetoothAdapter?): BluetoothServerSocket? {
         val requestMultiplePermissions =
             registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
                 permissions.entries.forEach {
@@ -340,7 +340,7 @@ class MainActivity : AppCompatActivity() {
                     if (!it.value) {
                         Toast.makeText(this, "Please enable permissions for bluetooth.", Toast.LENGTH_SHORT).show()
                     } else {
-                        bluetoothAdapter.enable()
+                        bluetoothAdapter?.enable()
                     }
                 }
             }
@@ -363,12 +363,12 @@ class MainActivity : AppCompatActivity() {
         }
         // get a bluetoothSocket
         val mmServerSocket: BluetoothServerSocket? by lazy(LazyThreadSafetyMode.NONE) {
-            bluetoothAdapter.listenUsingInsecureRfcommWithServiceRecord(NAME, MY_UUID)
+            bluetoothAdapter?.listenUsingInsecureRfcommWithServiceRecord(NAME, MY_UUID)
         }
         return mmServerSocket
     }
 
-    private inner class AcceptThread(bluetoothAdapter: BluetoothAdapter) : Thread() {
+    private inner class AcceptThread(bluetoothAdapter: BluetoothAdapter?) : Thread() {
         val mmServerSocket = getBluetoothSocket(bluetoothAdapter)
 
         override fun run() {
@@ -394,7 +394,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         private fun manageMyConnectedSocket(bluetoothSocket: BluetoothSocket) {
-            TODO("Not yet implemented")
+            println("qwer: manageMyConnectedSocket")
         }
 
         // Closes the connect socket and causes the thread to finish.
