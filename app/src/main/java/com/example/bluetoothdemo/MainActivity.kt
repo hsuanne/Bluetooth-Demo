@@ -104,7 +104,7 @@ class MainActivity : AppCompatActivity() {
         val requestMultiplePermissions =
             registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
                 if (permissions.entries.any { !it.value }) {
-                    Toast.makeText(this@MainActivity, "Please enable permissions for bluetooth.", Toast.LENGTH_SHORT).show()
+                    showToast(getString(R.string.enable_bluetooth_permission))
                 } else {
                     Toast.makeText(this@MainActivity, "Permissions enabled, please click 'serve as host' again.", Toast.LENGTH_SHORT).show()
                 }
@@ -135,12 +135,20 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun showToast(message: String) {
+        Toast.makeText(
+            this@MainActivity,
+            message,
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
     // Create a BroadcastReceiver for ACTION_FOUND.
     private val receiver = object : BroadcastReceiver() {
         val requestMultiplePermissions =
             registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
                 if (permissions.entries.any { !it.value }) {
-                    Toast.makeText(this@MainActivity, "Please enable permissions for bluetooth.", Toast.LENGTH_SHORT).show()
+                    showToast(getString(R.string.enable_bluetooth_permission))
                 } else {
                     Toast.makeText(this@MainActivity, "Permissions enabled, please click 'paired devices' again.", Toast.LENGTH_SHORT).show()
                 }
@@ -235,7 +243,7 @@ class MainActivity : AppCompatActivity() {
         val requestMultiplePermissions =
             registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
                 if (permissions.entries.any { !it.value }) {
-                    Toast.makeText(this, "Please enable permissions for bluetooth.", Toast.LENGTH_SHORT).show()
+                    showToast(getString(R.string.enable_bluetooth_permission))
                 } else {
                     Toast.makeText(this, "Permissions enabled, please click 'paired devices' again.", Toast.LENGTH_SHORT).show()
                     bluetoothAdapter?.enable()
@@ -268,12 +276,13 @@ class MainActivity : AppCompatActivity() {
                     }
             }
         }
+
     }
 
     private fun checkBluetoothSupported(bluetoothAdapter: BluetoothAdapter?) {
         if (bluetoothAdapter == null) {
             // Device doesn't support Bluetooth
-            Toast.makeText(this, "device doesn't support Bluetooth", Toast.LENGTH_SHORT).show()
+            showToast(getString(R.string.bluetooth_not_supported))
             finish()
         }
     }
@@ -317,14 +326,12 @@ class MainActivity : AppCompatActivity() {
                             Manifest.permission.BLUETOOTH_CONNECT
                         )
                     )
-                    return
                 } else {
                     // for android 11 and lower
                     // todo: not yet tested, but should work...
                     val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
                     requestBluetooth.launch(enableBtIntent)
                 }
-                return
             } else {
                 bluetoothAdapter.enable()
             }
