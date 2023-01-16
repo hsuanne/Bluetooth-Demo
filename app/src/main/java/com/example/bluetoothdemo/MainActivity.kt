@@ -36,6 +36,11 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // The BluetoothAdapter represents the device's own Bluetooth adapter (the Bluetooth radio)
+        // and is required for any and all Bluetooth activity
+        val bluetoothManager: BluetoothManager = getSystemService(BluetoothManager::class.java)
+        val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
+
         mainViewModel = MainViewModel()
 
         pairedDeviceButton = findViewById(R.id.pairedDeviceButton)
@@ -44,12 +49,9 @@ class MainActivity : AppCompatActivity() {
         pairedDeviceRecyclerView = findViewById(R.id.pairedDeviceRecyclerView)
         discoveredDeviceRecyclerView = findViewById(R.id.discoverDeviceRecyclerView)
         pairedDevicesAdapter = PairedDevicesAdapter()
-        discoveredDevicesAdapter = DiscoveredDevicesAdapter()
-
-        // The BluetoothAdapter represents the device's own Bluetooth adapter (the Bluetooth radio)
-        // and is required for any and all Bluetooth activity
-        val bluetoothManager: BluetoothManager = getSystemService(BluetoothManager::class.java)
-        val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
+        discoveredDevicesAdapter = DiscoveredDevicesAdapter {
+            ConnectThread(it.socket, bluetoothAdapter).start() // connect as client
+        }
 
         pairedDeviceRecyclerView.layoutManager = LinearLayoutManager(this)
         pairedDeviceRecyclerView.adapter = pairedDevicesAdapter
@@ -113,7 +115,7 @@ class MainActivity : AppCompatActivity() {
         hostButton.setOnClickListener {
             val requestCode = 1;
             val discoverableIntent: Intent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
-                putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 10)
+                putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 60)
             }
             if (ActivityCompat.checkSelfPermission(
                     this@MainActivity,
@@ -182,7 +184,8 @@ class MainActivity : AppCompatActivity() {
                     device?.let {
                         val deviceName = device.name?: "Unknown"
                         val deviceHardwareAddress = device.address
-                        val discoveredDevice = FoundDevice(deviceName, deviceHardwareAddress)
+                        val deviceSocket = device.createRfcommSocketToServiceRecord(MY_UUID)
+                        val discoveredDevice = FoundDevice(deviceName, deviceHardwareAddress, deviceSocket)
                         mainViewModel.addToDiscoveredDevices(discoveredDevice)
                     }
                 }
@@ -269,7 +272,8 @@ class MainActivity : AppCompatActivity() {
                 if (bluetoothAdapter?.isEnabled == false) bluetoothAdapter.enable()
                 bluetoothAdapter?.bondedDevices
                     ?.map {
-                        FoundDevice(it.name, it.address)
+                        FoundDevice(it.name, it.address, it.createRfcommSocketToServiceRecord(
+                            MY_UUID))
                     }
                     .apply {
                         if (this != null) mainViewModel.updatePairedDevices(this)
@@ -413,8 +417,62 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private inner class ConnectThread(val bluetoothSocket: BluetoothSocket, val bluetoothAdapter: BluetoothAdapter?) : Thread() {
+
+        private val mmSocket: BluetoothSocket? by lazy(LazyThreadSafetyMode.NONE) {
+            bluetoothSocket
+        }
+
+        public override fun run() {
+            // Cancel discovery because it otherwise slows down the connection.
+            if (ActivityCompat.checkSelfPermission(
+                    this@MainActivity,
+                    Manifest.permission.BLUETOOTH_SCAN
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                // TODO: Consider calling
+                //    ActivityCompat#requestPermissions
+                // here to request the missing permissions, and then overriding
+                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                //                                          int[] grantResults)
+                // to handle the case where the user grants the permission. See the documentation
+                // for ActivityCompat#requestPermissions for more details.
+                return
+            }
+            bluetoothAdapter?.cancelDiscovery()
+
+            mmSocket?.let { socket ->
+                // Connect to the remote device through the socket. This call blocks
+                // until it succeeds or throws an exception.
+                try {
+                    socket.connect()
+                } catch (e: IOException) {
+                    e.message?.let { Log.d("ConnectThread", it) }
+                    runOnUiThread { Toast.makeText(this@MainActivity, getString(R.string.pairingFailed), Toast.LENGTH_SHORT).show() }
+                }
+
+                // The connection attempt succeeded. Perform work associated with
+                // the connection in a separate thread.
+                manageMyConnectedSocket(socket)
+            }
+        }
+
+        private fun manageMyConnectedSocket(bluetoothSocket: BluetoothSocket) {
+            // todo: transfer data
+        }
+
+        // Closes the client socket and causes the thread to finish.
+        fun cancel() {
+            try {
+                mmSocket?.close()
+            } catch (e: IOException) {
+                Log.e(TAG, "Could not close the client socket", e)
+            }
+        }
+    }
+
     companion object {
         const val NAME = "BluetoothDemo"
-        val MY_UUID: UUID = fromString("ca94f29c-ec41-4d46-9392-64188ab9b55e")
+        val MY_UUID: UUID = fromString("ca94f29c-ec41-4d46-9392-64188ab9b55e") // has to be the same on server and client
     }
 }

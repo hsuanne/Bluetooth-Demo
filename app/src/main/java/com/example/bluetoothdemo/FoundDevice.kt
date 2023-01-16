@@ -1,10 +1,12 @@
 package com.example.bluetoothdemo
 
+import android.bluetooth.BluetoothSocket
 import androidx.recyclerview.widget.DiffUtil
 
 data class FoundDevice(
     val deviceName: String,
     val deviceMacAddress: String,
+    val socket: BluetoothSocket,
 )
 
 class DiffCallback : DiffUtil.ItemCallback<FoundDevice>() {
