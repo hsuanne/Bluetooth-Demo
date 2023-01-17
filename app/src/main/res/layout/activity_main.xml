@@ -58,4 +58,14 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"/>
 
+    <TextView
+        android:id="@+id/transferredData"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="22sp"
+        app:layout_constraintStart_toEndOf="@id/discoverDeviceButton"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/discoverDeviceButton"
+        app:layout_constraintBottom_toBottomOf="@id/discoverDeviceButton"/>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

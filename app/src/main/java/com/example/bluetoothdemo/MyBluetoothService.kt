@@ -45,7 +45,6 @@ class MyBluetoothService(
                 val readMsg = handler.obtainMessage(
                     MESSAGE_READ, numBytes, -1,
                     mmBuffer)
-                println("qwer run: $readMsg")
                 readMsg.sendToTarget()
             }
         }

@@ -8,12 +8,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.os.Build
-import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
+import android.os.*
 import android.util.Log
 import android.widget.Button
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -28,13 +26,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pairedDeviceButton: Button
     private lateinit var discoverDeviceButton: Button
     private lateinit var hostButton: Button
+    private lateinit var messageTextView: TextView
     private lateinit var pairedDeviceRecyclerView: RecyclerView
     private lateinit var discoveredDeviceRecyclerView: RecyclerView
     private lateinit var pairedDevicesAdapter: PairedDevicesAdapter
     private lateinit var discoveredDevicesAdapter: DiscoveredDevicesAdapter
     private lateinit var mainViewModel: MainViewModel
-    val mainHandler = Handler(Looper.getMainLooper())
-    val myBluetoothService = MyBluetoothService(mainHandler)
+    private lateinit var mainHandler: Handler
+    private lateinit var myBluetoothService: MyBluetoothService
+    private lateinit var mConnectThread: ConnectThread
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,16 +46,36 @@ class MainActivity : AppCompatActivity() {
         val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
 
         mainViewModel = MainViewModel()
+        mainHandler = Handler(Looper.getMainLooper(), object : Handler.Callback {
+            override fun handleMessage(message: Message): Boolean {
+                when(message.what) {
+                    MESSAGE_READ -> {
+                        val readBuf = message.obj as ByteArray
+                        val readMsg = String(readBuf)
+                        messageTextView.text = readMsg
+                    }
+                }
+                return true
+            }
+        })
+
+        myBluetoothService = MyBluetoothService(mainHandler)
 
         pairedDeviceButton = findViewById(R.id.pairedDeviceButton)
         discoverDeviceButton = findViewById(R.id.discoverDeviceButton)
         hostButton = findViewById(R.id.hostButton)
+        messageTextView = findViewById(R.id.transferredData)
         pairedDeviceRecyclerView = findViewById(R.id.pairedDeviceRecyclerView)
         discoveredDeviceRecyclerView = findViewById(R.id.discoverDeviceRecyclerView)
+
         pairedDevicesAdapter = PairedDevicesAdapter {
+            val bluetoothSocket = mConnectThread.getConnectedSocket()?: return@PairedDevicesAdapter
+            val hello = byteArrayOf(0x48, 101, 108, 108, 111)
+            if (bluetoothSocket.isConnected) myBluetoothService.ConnectedThread(bluetoothSocket).write(hello)
         }
+
         discoveredDevicesAdapter = DiscoveredDevicesAdapter {
-            ConnectThread(it, bluetoothAdapter).start() // connect as client
+            mConnectThread = ConnectThread(it, bluetoothAdapter).apply { start() } // connect as client
         }
 
         pairedDeviceRecyclerView.layoutManager = LinearLayoutManager(this)
@@ -509,7 +529,6 @@ class MainActivity : AppCompatActivity() {
         private fun manageMyConnectedSocket(bluetoothSocket: BluetoothSocket) {
             // todo: transfer data
             myBluetoothService.ConnectedThread(bluetoothSocket).start()
-
         }
 
         // Closes the connect socket and causes the thread to finish.
@@ -565,7 +584,6 @@ class MainActivity : AppCompatActivity() {
         private fun manageMyConnectedSocket(bluetoothSocket: BluetoothSocket) {
             // todo: transfer data
             mainViewModel.removeDeviceAfterPaired(foundDevice)
-            myBluetoothService.ConnectedThread(bluetoothSocket).write(byteArrayOf(1,2,3))
         }
 
         // Closes the client socket and causes the thread to finish.
@@ -575,6 +593,10 @@ class MainActivity : AppCompatActivity() {
             } catch (e: IOException) {
                 Log.e(TAG, "Could not close the client socket", e)
             }
+        }
+
+        fun getConnectedSocket(): BluetoothSocket? {
+            return mmSocket
         }
     }
 
