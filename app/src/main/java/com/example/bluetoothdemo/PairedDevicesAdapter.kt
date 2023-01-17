@@ -7,7 +7,9 @@ import android.widget.TextView
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 
-class PairedDevicesAdapter: ListAdapter<FoundDevice, RecyclerView.ViewHolder>(DiffCallback()) {
+class PairedDevicesAdapter(
+    val onDeviceClick: (device: FoundDevice) -> Unit
+): ListAdapter<FoundDevice, RecyclerView.ViewHolder>(DiffCallback()) {
 
     class PairedDeviceInfoViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         private val deviceName: TextView = view.findViewById(R.id.deviceName)
@@ -26,7 +28,13 @@ class PairedDevicesAdapter: ListAdapter<FoundDevice, RecyclerView.ViewHolder>(Di
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (holder) {
-            is PairedDeviceInfoViewHolder -> holder.bind(getItem(position))
+            is PairedDeviceInfoViewHolder -> {
+                val device = getItem(position)
+                holder.bind(device)
+                holder.itemView.setOnClickListener {
+                    onDeviceClick(device)
+                }
+            }
         }
     }
 }

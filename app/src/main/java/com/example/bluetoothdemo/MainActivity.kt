@@ -8,10 +8,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.os.Build
-import android.os.Bundle
+import android.os.*
 import android.util.Log
 import android.widget.Button
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -26,11 +26,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pairedDeviceButton: Button
     private lateinit var discoverDeviceButton: Button
     private lateinit var hostButton: Button
+    private lateinit var messageTextView: TextView
     private lateinit var pairedDeviceRecyclerView: RecyclerView
     private lateinit var discoveredDeviceRecyclerView: RecyclerView
     private lateinit var pairedDevicesAdapter: PairedDevicesAdapter
     private lateinit var discoveredDevicesAdapter: DiscoveredDevicesAdapter
     private lateinit var mainViewModel: MainViewModel
+    private lateinit var mainHandler: Handler
+    private lateinit var myBluetoothService: MyBluetoothService
+    private lateinit var mConnectThread: ConnectThread
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,15 +46,36 @@ class MainActivity : AppCompatActivity() {
         val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
 
         mainViewModel = MainViewModel()
+        mainHandler = Handler(Looper.getMainLooper(), object : Handler.Callback {
+            override fun handleMessage(message: Message): Boolean {
+                when(message.what) {
+                    MESSAGE_READ -> {
+                        val readBuf = message.obj as ByteArray
+                        val readMsg = String(readBuf)
+                        messageTextView.text = readMsg
+                    }
+                }
+                return true
+            }
+        })
+
+        myBluetoothService = MyBluetoothService(mainHandler)
 
         pairedDeviceButton = findViewById(R.id.pairedDeviceButton)
         discoverDeviceButton = findViewById(R.id.discoverDeviceButton)
         hostButton = findViewById(R.id.hostButton)
+        messageTextView = findViewById(R.id.transferredData)
         pairedDeviceRecyclerView = findViewById(R.id.pairedDeviceRecyclerView)
         discoveredDeviceRecyclerView = findViewById(R.id.discoverDeviceRecyclerView)
-        pairedDevicesAdapter = PairedDevicesAdapter()
+
+        pairedDevicesAdapter = PairedDevicesAdapter {
+            val bluetoothSocket = mConnectThread.getConnectedSocket()?: return@PairedDevicesAdapter
+            val hello = byteArrayOf(0x48, 101, 108, 108, 111)
+            if (bluetoothSocket.isConnected) myBluetoothService.ConnectedThread(bluetoothSocket).write(hello)
+        }
+
         discoveredDevicesAdapter = DiscoveredDevicesAdapter {
-            ConnectThread(it, bluetoothAdapter).start() // connect as client
+            mConnectThread = ConnectThread(it, bluetoothAdapter).apply { start() } // connect as client
         }
 
         pairedDeviceRecyclerView.layoutManager = LinearLayoutManager(this)
@@ -120,20 +145,41 @@ class MainActivity : AppCompatActivity() {
             if (ActivityCompat.checkSelfPermission(
                     this@MainActivity,
                     Manifest.permission.BLUETOOTH_CONNECT
-                ) != PackageManager.PERMISSION_GRANTED
+                ) != PackageManager.PERMISSION_GRANTED &&
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
             ) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    // for android 12 and higher
-                    requestMultiplePermissions.launch(
-                        arrayOf(
-                            Manifest.permission.BLUETOOTH_SCAN,
-                            Manifest.permission.BLUETOOTH_CONNECT
-                        )
+                // for android 12 and higher
+                requestMultiplePermissions.launch(
+                    arrayOf(
+                        Manifest.permission.BLUETOOTH_SCAN,
+                        Manifest.permission.BLUETOOTH_CONNECT
                     )
-                }
-                return@setOnClickListener
-            }
-            startActivityForResult(discoverableIntent, requestCode)
+                )
+            } else if (ActivityCompat.checkSelfPermission(
+                    this@MainActivity,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) != PackageManager.PERMISSION_GRANTED &&
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+            ){
+                // for android 10 and higher
+                requestMultiplePermissions.launch(
+                    arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION
+                    )
+                )
+            } else if (ActivityCompat.checkSelfPermission(
+                    this@MainActivity,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                ) != PackageManager.PERMISSION_GRANTED &&
+                Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+            ) {
+                // for android 9 and lower
+                requestMultiplePermissions.launch(
+                    arrayOf(
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    )
+                )
+            } else startActivityForResult(discoverableIntent, requestCode)
         }
     }
 
@@ -168,25 +214,49 @@ class MainActivity : AppCompatActivity() {
                     if (ActivityCompat.checkSelfPermission(
                             this@MainActivity,
                             Manifest.permission.BLUETOOTH_CONNECT
-                        ) != PackageManager.PERMISSION_GRANTED
+                        ) != PackageManager.PERMISSION_GRANTED &&
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
                     ) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                            // for android 12 and higher
-                            requestMultiplePermissions.launch(
-                                arrayOf(
-                                    Manifest.permission.BLUETOOTH_SCAN,
-                                    Manifest.permission.BLUETOOTH_CONNECT
-                                )
+                        // for android 12 and higher
+                        requestMultiplePermissions.launch(
+                            arrayOf(
+                                Manifest.permission.BLUETOOTH_SCAN,
+                                Manifest.permission.BLUETOOTH_CONNECT
                             )
+                        )
+                    } else if (ActivityCompat.checkSelfPermission(
+                            this@MainActivity,
+                            Manifest.permission.ACCESS_FINE_LOCATION
+                        ) != PackageManager.PERMISSION_GRANTED &&
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+                    ){
+                        // for android 10 and higher
+                        requestMultiplePermissions.launch(
+                            arrayOf(
+                                Manifest.permission.ACCESS_FINE_LOCATION
+                            )
+                        )
+                    } else if (ActivityCompat.checkSelfPermission(
+                            this@MainActivity,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                        ) != PackageManager.PERMISSION_GRANTED &&
+                        Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+                    ) {
+                        // for android 9 and lower
+                        requestMultiplePermissions.launch(
+                            arrayOf(
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                            )
+                        )
+                    } else {
+                        device?.let {
+                            val deviceName = device.name ?: "Unknown"
+                            val deviceHardwareAddress = device.address
+                            val deviceSocket = device.createRfcommSocketToServiceRecord(MY_UUID)
+                            val discoveredDevice =
+                                FoundDevice(deviceName, deviceHardwareAddress, deviceSocket)
+                            mainViewModel.addToDiscoveredDevices(discoveredDevice)
                         }
-                        return
-                    }
-                    device?.let {
-                        val deviceName = device.name?: "Unknown"
-                        val deviceHardwareAddress = device.address
-                        val deviceSocket = device.createRfcommSocketToServiceRecord(MY_UUID)
-                        val discoveredDevice = FoundDevice(deviceName, deviceHardwareAddress, deviceSocket)
-                        mainViewModel.addToDiscoveredDevices(discoveredDevice)
                     }
                 }
             }
@@ -215,24 +285,42 @@ class MainActivity : AppCompatActivity() {
             mainViewModel.clearDiscoveredDevices()
             if (ActivityCompat.checkSelfPermission(
                     this,
-                    Manifest.permission.ACCESS_FINE_LOCATION
-                ) != PackageManager.PERMISSION_GRANTED ||
-                ActivityCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.BLUETOOTH_SCAN
-                ) != PackageManager.PERMISSION_GRANTED
+                    Manifest.permission.BLUETOOTH_CONNECT
+                ) != PackageManager.PERMISSION_GRANTED &&
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
             ) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    // for android 12 and higher
-                    requestMultiplePermissions.launch(
-                        arrayOf(
-                            Manifest.permission.ACCESS_FINE_LOCATION,
-                            Manifest.permission.BLUETOOTH_CONNECT,
-                            Manifest.permission.BLUETOOTH_SCAN
-                        )
+                // for android 12 and higher
+                requestMultiplePermissions.launch(
+                    arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.BLUETOOTH_SCAN,
+                        Manifest.permission.BLUETOOTH_CONNECT
                     )
-                }
-                return@setOnClickListener
+                )
+            } else if (ActivityCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) != PackageManager.PERMISSION_GRANTED &&
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+            ){
+                // for android 10 and higher
+                requestMultiplePermissions.launch(
+                    arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION
+                    )
+                )
+            } else if (ActivityCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                ) != PackageManager.PERMISSION_GRANTED &&
+                Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+            ) {
+                // for android 9 and lower
+                requestMultiplePermissions.launch(
+                    arrayOf(
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    )
+                )
             }
             if (bluetoothAdapter?.isDiscovering == true) {
                 bluetoothAdapter.cancelDiscovery()
@@ -257,17 +345,40 @@ class MainActivity : AppCompatActivity() {
             if (ActivityCompat.checkSelfPermission(
                     this,
                     Manifest.permission.BLUETOOTH_CONNECT
-                ) != PackageManager.PERMISSION_GRANTED
+                ) != PackageManager.PERMISSION_GRANTED &&
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
             ) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    // for android 12 and higher
-                    requestMultiplePermissions.launch(
-                        arrayOf(
-                            Manifest.permission.BLUETOOTH_SCAN,
-                            Manifest.permission.BLUETOOTH_CONNECT
-                        )
+                // for android 12 and higher
+                requestMultiplePermissions.launch(
+                    arrayOf(
+                        Manifest.permission.BLUETOOTH_SCAN,
+                        Manifest.permission.BLUETOOTH_CONNECT
                     )
-                }
+                )
+            } else if (ActivityCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) != PackageManager.PERMISSION_GRANTED &&
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+            ){
+                // for android 10 and higher
+                requestMultiplePermissions.launch(
+                    arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION
+                    )
+                )
+            } else if (ActivityCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                ) != PackageManager.PERMISSION_GRANTED &&
+                Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+            ) {
+                // for android 9 and lower
+                requestMultiplePermissions.launch(
+                    arrayOf(
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    )
+                )
             } else {
                 if (bluetoothAdapter?.isEnabled == false) bluetoothAdapter.enable()
                 bluetoothAdapter?.bondedDevices
@@ -369,6 +480,18 @@ class MainActivity : AppCompatActivity() {
                     )
                 )
                 return null
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                requestMultiplePermissions.launch(
+                    arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION
+                    )
+                )
+            } else {
+                requestMultiplePermissions.launch(
+                    arrayOf(
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    )
+                )
             }
         }
         // get a bluetoothSocket
@@ -405,6 +528,7 @@ class MainActivity : AppCompatActivity() {
 
         private fun manageMyConnectedSocket(bluetoothSocket: BluetoothSocket) {
             // todo: transfer data
+            myBluetoothService.ConnectedThread(bluetoothSocket).start()
         }
 
         // Closes the connect socket and causes the thread to finish.
@@ -469,6 +593,10 @@ class MainActivity : AppCompatActivity() {
             } catch (e: IOException) {
                 Log.e(TAG, "Could not close the client socket", e)
             }
+        }
+
+        fun getConnectedSocket(): BluetoothSocket? {
+            return mmSocket
         }
     }
 
