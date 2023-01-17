@@ -50,7 +50,7 @@ class MainActivity : AppCompatActivity() {
         discoveredDeviceRecyclerView = findViewById(R.id.discoverDeviceRecyclerView)
         pairedDevicesAdapter = PairedDevicesAdapter()
         discoveredDevicesAdapter = DiscoveredDevicesAdapter {
-            ConnectThread(it.socket, bluetoothAdapter).start() // connect as client
+            ConnectThread(it, bluetoothAdapter).start() // connect as client
         }
 
         pairedDeviceRecyclerView.layoutManager = LinearLayoutManager(this)
@@ -113,7 +113,7 @@ class MainActivity : AppCompatActivity() {
             }
 
         hostButton.setOnClickListener {
-            val requestCode = 1;
+            val requestCode = 1
             val discoverableIntent: Intent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
                 putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 60)
             }
@@ -417,10 +417,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private inner class ConnectThread(val bluetoothSocket: BluetoothSocket, val bluetoothAdapter: BluetoothAdapter?) : Thread() {
+    private inner class ConnectThread(val foundDevice: FoundDevice, val bluetoothAdapter: BluetoothAdapter?) : Thread() {
 
         private val mmSocket: BluetoothSocket? by lazy(LazyThreadSafetyMode.NONE) {
-            bluetoothSocket
+            foundDevice.socket
         }
 
         public override fun run() {
@@ -453,12 +453,13 @@ class MainActivity : AppCompatActivity() {
 
                 // The connection attempt succeeded. Perform work associated with
                 // the connection in a separate thread.
-                manageMyConnectedSocket(socket)
+                if (socket.isConnected) manageMyConnectedSocket(socket)
             }
         }
 
         private fun manageMyConnectedSocket(bluetoothSocket: BluetoothSocket) {
             // todo: transfer data
+            mainViewModel.removeDeviceAfterPaired(foundDevice)
         }
 
         // Closes the client socket and causes the thread to finish.

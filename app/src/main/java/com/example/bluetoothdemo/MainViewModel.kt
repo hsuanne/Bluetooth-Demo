@@ -24,4 +24,8 @@ class MainViewModel: ViewModel() {
     fun clearDiscoveredDevices() {
         discoveredDevices.value = listOf()
     }
+
+    fun removeDeviceAfterPaired(device: FoundDevice) {
+        discoveredDevices.postValue(discoveredDevices.value?.minus(device))
+    }
 }
