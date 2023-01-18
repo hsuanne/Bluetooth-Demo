@@ -5,12 +5,16 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 
 class MainViewModel: ViewModel() {
-    val foundDevices = MutableLiveData<List<FoundDevice>>()
+    val pairedDevices = MutableLiveData<List<FoundDevice>>()
     val discoveredDevices = MutableLiveData<List<FoundDevice>>()
     val bluetoothDevices = MutableLiveData<List<BluetoothDevice>>()
 
     fun updatePairedDevices(foundDevices: List<FoundDevice>) {
-        this.foundDevices.value = foundDevices
+        this.pairedDevices.postValue(foundDevices)
+    }
+
+    fun isDevicePaired(macAddress: String): Boolean {
+        return pairedDevices.value?.map { it.deviceMacAddress }?.contains(macAddress) == true
     }
 
     fun addToDiscoveredDevices(discoveredDevice: FoundDevice) {
