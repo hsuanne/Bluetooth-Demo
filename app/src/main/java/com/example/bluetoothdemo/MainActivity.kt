@@ -71,13 +71,18 @@ class MainActivity : AppCompatActivity() {
         discoveredDeviceRecyclerView = findViewById(R.id.discoverDeviceRecyclerView)
 
         pairedDevicesAdapter = PairedDevicesAdapter {
-            val bluetoothSocket = mConnectThread.getConnectedSocket()?: return@PairedDevicesAdapter
-            val hello = byteArrayOf(0x48, 101, 108, 108, 111)
-            if (bluetoothSocket.isConnected) myBluetoothService.ConnectedThread(bluetoothSocket).write(hello)
+            val pairedDeviceSocket = it.socket
+            if (!pairedDeviceSocket.isConnected) {
+                connect(it)
+                // todo: nav to fragment
+                    val hello = byteArrayOf(0x48, 101, 108, 108, 111)
+                    myBluetoothService.ConnectedThread(pairedDeviceSocket).write(hello)
+            }
         }
 
         discoveredDevicesAdapter = DiscoveredDevicesAdapter {
             mConnectThread = ConnectThread(it, bluetoothAdapter).apply { start() } // connect as client
+            // todo: nav to transfer fragment after connect
         }
 
         pairedDeviceRecyclerView.layoutManager = LinearLayoutManager(this)
@@ -345,13 +350,12 @@ class MainActivity : AppCompatActivity() {
         bluetoothAdapter: BluetoothAdapter?
     ) {
         pairedDeviceButton.setOnClickListener {
-            getPairedDevices(bluetoothAdapter, bluetoothPermission)
+            getPairedDevices(bluetoothAdapter)
         }
     }
 
     private fun getPairedDevices(
-        bluetoothAdapter: BluetoothAdapter?,
-        requestBTPermission: ActivityResultLauncher<Array<String>>
+        bluetoothAdapter: BluetoothAdapter?
     ) {
         if (ActivityCompat.checkSelfPermission(
                 this,
@@ -360,7 +364,7 @@ class MainActivity : AppCompatActivity() {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
         ) {
             // for android 12 and higher
-            requestBTPermission.launch(
+            bluetoothPermission.launch(
                 arrayOf(
                     Manifest.permission.BLUETOOTH_SCAN,
                     Manifest.permission.BLUETOOTH_CONNECT
@@ -373,7 +377,7 @@ class MainActivity : AppCompatActivity() {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
         ) {
             // for android 10 and higher
-            requestBTPermission.launch(
+            bluetoothPermission.launch(
                 arrayOf(
                     Manifest.permission.ACCESS_FINE_LOCATION
                 )
@@ -385,7 +389,7 @@ class MainActivity : AppCompatActivity() {
             Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
         ) {
             // for android 9 and lower
-            requestBTPermission.launch(
+            bluetoothPermission.launch(
                 arrayOf(
                     Manifest.permission.ACCESS_COARSE_LOCATION
                 )
@@ -566,13 +570,6 @@ class MainActivity : AppCompatActivity() {
                     Manifest.permission.BLUETOOTH_SCAN
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
-                // TODO: Consider calling
-                //    ActivityCompat#requestPermissions
-                // here to request the missing permissions, and then overriding
-                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                //                                          int[] grantResults)
-                // to handle the case where the user grants the permission. See the documentation
-                // for ActivityCompat#requestPermissions for more details.
                 return
             }
             bluetoothAdapter?.cancelDiscovery()
@@ -595,7 +592,7 @@ class MainActivity : AppCompatActivity() {
 
         private fun manageMyConnectedSocket(bluetoothSocket: BluetoothSocket) {
             mainViewModel.removeDeviceAfterPaired(foundDevice)
-            getPairedDevices(bluetoothAdapter, bluetoothPermission)
+            getPairedDevices(bluetoothAdapter)
         }
 
         // Closes the client socket and causes the thread to finish.
@@ -606,9 +603,48 @@ class MainActivity : AppCompatActivity() {
                 Log.e(TAG, "Could not close the client socket", e)
             }
         }
+    }
 
-        fun getConnectedSocket(): BluetoothSocket? {
-            return mmSocket
+    private fun connect(pairedDevice: FoundDevice){
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.BLUETOOTH_CONNECT
+            ) != PackageManager.PERMISSION_GRANTED &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+        ) {
+            // for android 12 and higher
+            bluetoothPermission.launch(
+                arrayOf(
+                    Manifest.permission.BLUETOOTH_SCAN,
+                    Manifest.permission.BLUETOOTH_CONNECT
+                )
+            )
+        } else if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+        ) {
+            // for android 10 and higher
+            bluetoothPermission.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                )
+            )
+        } else if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED &&
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+        ) {
+            // for android 9 and lower
+            bluetoothPermission.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        } else {
+            pairedDevice.socket.connect()
         }
     }
 
