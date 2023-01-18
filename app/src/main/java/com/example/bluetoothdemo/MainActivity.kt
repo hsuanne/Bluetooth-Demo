@@ -13,6 +13,7 @@ import android.util.Log
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -35,6 +36,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var mainHandler: Handler
     private lateinit var myBluetoothService: MyBluetoothService
     private lateinit var mConnectThread: ConnectThread
+    private val bluetoothPermission = getBTPermission()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -84,7 +86,7 @@ class MainActivity : AppCompatActivity() {
         discoveredDeviceRecyclerView.layoutManager = LinearLayoutManager(this)
         discoveredDeviceRecyclerView.adapter = discoveredDevicesAdapter
 
-        mainViewModel.foundDevices.observe(this) {
+        mainViewModel.pairedDevices.observe(this) {
             pairedDevicesAdapter.submitList(it)
         }
 
@@ -118,6 +120,22 @@ class MainActivity : AppCompatActivity() {
         connectAsServer(bluetoothAdapter)
     }
 
+    private fun getBTPermission(): ActivityResultLauncher<Array<String>> {
+        val requestBluetoothPermissions =
+            registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+                if (permissions.entries.any { !it.value }) {
+                    showToast(getString(R.string.prompt_bluetooth_permission))
+                } else {
+                    Toast.makeText(
+                        this,
+                        getString(R.string.permission_enabled),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        return requestBluetoothPermissions
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         unregisterReceiver(receiver)
@@ -131,9 +149,9 @@ class MainActivity : AppCompatActivity() {
         val requestMultiplePermissions =
             registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
                 if (permissions.entries.any { !it.value }) {
-                    showToast(getString(R.string.enable_bluetooth_permission))
+                    showToast(getString(R.string.prompt_bluetooth_permission))
                 } else {
-                    Toast.makeText(this@MainActivity, "Permissions enabled, please click 'serve as host' again.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivity, getString(R.string.permission_enabled), Toast.LENGTH_SHORT).show()
                 }
             }
 
@@ -193,15 +211,6 @@ class MainActivity : AppCompatActivity() {
 
     // Create a BroadcastReceiver for ACTION_FOUND.
     private val receiver = object : BroadcastReceiver() {
-        val requestMultiplePermissions =
-            registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-                if (permissions.entries.any { !it.value }) {
-                    showToast(getString(R.string.enable_bluetooth_permission))
-                } else {
-                    Toast.makeText(this@MainActivity, "Permissions enabled, please click 'paired devices' again.", Toast.LENGTH_SHORT).show()
-                }
-            }
-
         override fun onReceive(context: Context, intent: Intent) {
             when(intent.action) {
                 BluetoothDevice.ACTION_FOUND -> {
@@ -218,7 +227,7 @@ class MainActivity : AppCompatActivity() {
                         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
                     ) {
                         // for android 12 and higher
-                        requestMultiplePermissions.launch(
+                        bluetoothPermission.launch(
                             arrayOf(
                                 Manifest.permission.BLUETOOTH_SCAN,
                                 Manifest.permission.BLUETOOTH_CONNECT
@@ -231,7 +240,7 @@ class MainActivity : AppCompatActivity() {
                         Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
                     ){
                         // for android 10 and higher
-                        requestMultiplePermissions.launch(
+                        bluetoothPermission.launch(
                             arrayOf(
                                 Manifest.permission.ACCESS_FINE_LOCATION
                             )
@@ -243,13 +252,15 @@ class MainActivity : AppCompatActivity() {
                         Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
                     ) {
                         // for android 9 and lower
-                        requestMultiplePermissions.launch(
+                        bluetoothPermission.launch(
                             arrayOf(
                                 Manifest.permission.ACCESS_COARSE_LOCATION
                             )
                         )
                     } else {
                         device?.let {
+                            // if device is paired already, do not add to discoveredDevices
+                            if (mainViewModel.isDevicePaired(it.address)) return@let
                             val deviceName = device.name ?: "Unknown"
                             val deviceHardwareAddress = device.address
                             val deviceSocket = device.createRfcommSocketToServiceRecord(MY_UUID)
@@ -330,68 +341,69 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun checkPairedDevices(bluetoothAdapter: BluetoothAdapter?) {
-        val requestMultiplePermissions =
-            registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-                if (permissions.entries.any { !it.value }) {
-                    showToast(getString(R.string.enable_bluetooth_permission))
-                } else {
-                    Toast.makeText(this, "Permissions enabled, please click 'paired devices' again.", Toast.LENGTH_SHORT).show()
-                    bluetoothAdapter?.enable()
-                }
-            }
-
+    private fun checkPairedDevices(
+        bluetoothAdapter: BluetoothAdapter?
+    ) {
         pairedDeviceButton.setOnClickListener {
-            if (ActivityCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.BLUETOOTH_CONNECT
-                ) != PackageManager.PERMISSION_GRANTED &&
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-            ) {
-                // for android 12 and higher
-                requestMultiplePermissions.launch(
-                    arrayOf(
-                        Manifest.permission.BLUETOOTH_SCAN,
-                        Manifest.permission.BLUETOOTH_CONNECT
-                    )
-                )
-            } else if (ActivityCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.ACCESS_FINE_LOCATION
-                ) != PackageManager.PERMISSION_GRANTED &&
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-            ){
-                // for android 10 and higher
-                requestMultiplePermissions.launch(
-                    arrayOf(
-                        Manifest.permission.ACCESS_FINE_LOCATION
-                    )
-                )
-            } else if (ActivityCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                ) != PackageManager.PERMISSION_GRANTED &&
-                Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
-            ) {
-                // for android 9 and lower
-                requestMultiplePermissions.launch(
-                    arrayOf(
-                        Manifest.permission.ACCESS_COARSE_LOCATION
-                    )
-                )
-            } else {
-                if (bluetoothAdapter?.isEnabled == false) bluetoothAdapter.enable()
-                bluetoothAdapter?.bondedDevices
-                    ?.map {
-                        FoundDevice(it.name, it.address, it.createRfcommSocketToServiceRecord(
-                            MY_UUID))
-                    }
-                    .apply {
-                        if (this != null) mainViewModel.updatePairedDevices(this)
-                    }
-            }
+            getPairedDevices(bluetoothAdapter, bluetoothPermission)
         }
+    }
 
+    private fun getPairedDevices(
+        bluetoothAdapter: BluetoothAdapter?,
+        requestBTPermission: ActivityResultLauncher<Array<String>>
+    ) {
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.BLUETOOTH_CONNECT
+            ) != PackageManager.PERMISSION_GRANTED &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+        ) {
+            // for android 12 and higher
+            requestBTPermission.launch(
+                arrayOf(
+                    Manifest.permission.BLUETOOTH_SCAN,
+                    Manifest.permission.BLUETOOTH_CONNECT
+                )
+            )
+        } else if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+        ) {
+            // for android 10 and higher
+            requestBTPermission.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                )
+            )
+        } else if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED &&
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+        ) {
+            // for android 9 and lower
+            requestBTPermission.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        } else {
+            if (bluetoothAdapter?.isEnabled == false) bluetoothAdapter.enable()
+            bluetoothAdapter?.bondedDevices
+                ?.map {
+                    FoundDevice(
+                        it.name, it.address, it.createRfcommSocketToServiceRecord(
+                            MY_UUID
+                        )
+                    )
+                }
+                .apply {
+                    if (this != null) mainViewModel.updatePairedDevices(this)
+                }
+        }
     }
 
     private fun checkBluetoothSupported(bluetoothAdapter: BluetoothAdapter?) {
@@ -572,7 +584,7 @@ class MainActivity : AppCompatActivity() {
                     socket.connect()
                 } catch (e: IOException) {
                     e.message?.let { Log.d("ConnectThread", it) }
-                    runOnUiThread { Toast.makeText(this@MainActivity, getString(R.string.pairingFailed), Toast.LENGTH_SHORT).show() }
+                    runOnUiThread { Toast.makeText(this@MainActivity, getString(R.string.pairing_failed), Toast.LENGTH_SHORT).show() }
                 }
 
                 // The connection attempt succeeded. Perform work associated with
@@ -582,8 +594,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         private fun manageMyConnectedSocket(bluetoothSocket: BluetoothSocket) {
-            // todo: transfer data
             mainViewModel.removeDeviceAfterPaired(foundDevice)
+            getPairedDevices(bluetoothAdapter, bluetoothPermission)
         }
 
         // Closes the client socket and causes the thread to finish.
