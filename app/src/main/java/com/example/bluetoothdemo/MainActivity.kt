@@ -17,6 +17,7 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import java.io.IOException
@@ -47,7 +48,7 @@ class MainActivity : AppCompatActivity() {
         val bluetoothManager: BluetoothManager = getSystemService(BluetoothManager::class.java)
         val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
 
-        mainViewModel = MainViewModel()
+        mainViewModel = ViewModelProvider(this)[MainViewModel::class.java]
         mainHandler = Handler(Looper.getMainLooper(), object : Handler.Callback {
             override fun handleMessage(message: Message): Boolean {
                 when(message.what) {
@@ -71,18 +72,19 @@ class MainActivity : AppCompatActivity() {
         discoveredDeviceRecyclerView = findViewById(R.id.discoverDeviceRecyclerView)
 
         pairedDevicesAdapter = PairedDevicesAdapter {
+            mainViewModel.setConnectedServer(it)
             val pairedDeviceSocket = it.socket
             if (!pairedDeviceSocket.isConnected) {
-                connect(it)
-                // todo: nav to fragment
-                    val hello = byteArrayOf(0x48, 101, 108, 108, 111)
-                    myBluetoothService.ConnectedThread(pairedDeviceSocket).write(hello)
+                connect(it) //fixme: use ConnectThread for asynchronous call
+            }
+            if (pairedDeviceSocket.isConnected) {
+                writeMsg(pairedDeviceSocket)
+                navToChatFrag()
             }
         }
 
         discoveredDevicesAdapter = DiscoveredDevicesAdapter {
             mConnectThread = ConnectThread(it, bluetoothAdapter).apply { start() } // connect as client
-            // todo: nav to transfer fragment after connect
         }
 
         pairedDeviceRecyclerView.layoutManager = LinearLayoutManager(this)
@@ -119,10 +121,22 @@ class MainActivity : AppCompatActivity() {
         // Enabling discoverability (= serve as host to let other devices find you)
         // this is only necessary when you want your app to host a server socket that accepts incoming connections
         // however, it's better to let app be able to host, so that we can ensure that app can accept incoming connections
-        enableDiscoverability()
+        enableDiscoverability(bluetoothAdapter)
 
         // Connect as a server
         connectAsServer(bluetoothAdapter)
+    }
+
+    private fun writeMsg(pairedDeviceSocket: BluetoothSocket) {
+        val hello = byteArrayOf(0x48, 101, 108, 108, 111)
+        myBluetoothService.ConnectedThread(pairedDeviceSocket).write(hello)
+    }
+
+    private fun navToChatFrag() {
+        val fragmentTransaction = supportFragmentManager.beginTransaction()
+        fragmentTransaction.replace(R.id.fragmentContainer, ChatFragment())
+            .addToBackStack("Chat Fragment")
+            .commit()
     }
 
     private fun getBTPermission(): ActivityResultLauncher<Array<String>> {
@@ -150,16 +164,7 @@ class MainActivity : AppCompatActivity() {
         AcceptThread(bluetoothAdapter).start()
     }
 
-    private fun enableDiscoverability() {
-        val requestMultiplePermissions =
-            registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-                if (permissions.entries.any { !it.value }) {
-                    showToast(getString(R.string.prompt_bluetooth_permission))
-                } else {
-                    Toast.makeText(this@MainActivity, getString(R.string.permission_enabled), Toast.LENGTH_SHORT).show()
-                }
-            }
-
+    private fun enableDiscoverability(bluetoothAdapter: BluetoothAdapter?) {
         hostButton.setOnClickListener {
             val requestCode = 1
             val discoverableIntent: Intent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
@@ -172,7 +177,7 @@ class MainActivity : AppCompatActivity() {
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
             ) {
                 // for android 12 and higher
-                requestMultiplePermissions.launch(
+                bluetoothPermission.launch(
                     arrayOf(
                         Manifest.permission.BLUETOOTH_SCAN,
                         Manifest.permission.BLUETOOTH_CONNECT
@@ -185,7 +190,7 @@ class MainActivity : AppCompatActivity() {
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
             ){
                 // for android 10 and higher
-                requestMultiplePermissions.launch(
+                bluetoothPermission.launch(
                     arrayOf(
                         Manifest.permission.ACCESS_FINE_LOCATION
                     )
@@ -197,12 +202,15 @@ class MainActivity : AppCompatActivity() {
                 Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
             ) {
                 // for android 9 and lower
-                requestMultiplePermissions.launch(
+                bluetoothPermission.launch(
                     arrayOf(
                         Manifest.permission.ACCESS_COARSE_LOCATION
                     )
                 )
-            } else startActivityForResult(discoverableIntent, requestCode)
+            } else {
+                if (bluetoothAdapter?.isEnabled == false) bluetoothAdapter.enable()
+                startActivityForResult(discoverableIntent, requestCode)
+            }
         }
     }
 
@@ -563,7 +571,7 @@ class MainActivity : AppCompatActivity() {
             foundDevice.socket
         }
 
-        public override fun run() {
+        override fun run() {
             // Cancel discovery because it otherwise slows down the connection.
             if (ActivityCompat.checkSelfPermission(
                     this@MainActivity,
@@ -644,7 +652,12 @@ class MainActivity : AppCompatActivity() {
                 )
             )
         } else {
-            pairedDevice.socket.connect()
+            try {
+                pairedDevice.socket.connect()
+            } catch (e: IOException) {
+                e.message?.let { Log.d("Paired Device ConnectThread", it) }
+                runOnUiThread { Toast.makeText(this@MainActivity, getString(R.string.pairing_failed), Toast.LENGTH_SHORT).show() }
+            }
         }
     }
 
