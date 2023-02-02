@@ -74,10 +74,11 @@ class MainActivity : AppCompatActivity() {
         pairedDevicesAdapter = PairedDevicesAdapter {
             mainViewModel.setConnectedServer(it)
             val pairedDeviceSocket = it.socket
+            Log.d("pairedDeviceSocket", "isConnected: ${pairedDeviceSocket.isConnected}")
+
             if (!pairedDeviceSocket.isConnected) {
-                connect(it) //fixme: use ConnectThread for asynchronous call
-            }
-            if (pairedDeviceSocket.isConnected) {
+                ConnectThread(it, bluetoothAdapter).apply { start() }
+            } else {
                 writeMsg(pairedDeviceSocket)
                 navToChatFrag()
             }
@@ -544,8 +545,8 @@ class MainActivity : AppCompatActivity() {
                 socket?.also {
                     manageMyConnectedSocket(it)
                     // call close() immediately after finding a socket
-                    mmServerSocket?.close()
-                    shouldLoop = false
+//                    mmServerSocket?.close()
+//                    shouldLoop = false
                 }
             }
         }
@@ -566,7 +567,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private inner class ConnectThread(val foundDevice: FoundDevice, val bluetoothAdapter: BluetoothAdapter?) : Thread() {
-
         private val mmSocket: BluetoothSocket? by lazy(LazyThreadSafetyMode.NONE) {
             foundDevice.socket
         }
@@ -599,8 +599,15 @@ class MainActivity : AppCompatActivity() {
         }
 
         private fun manageMyConnectedSocket(bluetoothSocket: BluetoothSocket) {
-            mainViewModel.removeDeviceAfterPaired(foundDevice)
-            getPairedDevices(bluetoothAdapter)
+            val isClickFromDiscoverDevices = mainViewModel.removeDeviceAfterPaired(foundDevice)
+            if (isClickFromDiscoverDevices) {
+                getPairedDevices(bluetoothAdapter)
+                cancel()
+            }
+            else {
+                writeMsg(bluetoothSocket)
+                navToChatFrag()
+            }
         }
 
         // Closes the client socket and causes the thread to finish.
@@ -609,54 +616,6 @@ class MainActivity : AppCompatActivity() {
                 mmSocket?.close()
             } catch (e: IOException) {
                 Log.e(TAG, "Could not close the client socket", e)
-            }
-        }
-    }
-
-    private fun connect(pairedDevice: FoundDevice){
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.BLUETOOTH_CONNECT
-            ) != PackageManager.PERMISSION_GRANTED &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-        ) {
-            // for android 12 and higher
-            bluetoothPermission.launch(
-                arrayOf(
-                    Manifest.permission.BLUETOOTH_SCAN,
-                    Manifest.permission.BLUETOOTH_CONNECT
-                )
-            )
-        } else if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-        ) {
-            // for android 10 and higher
-            bluetoothPermission.launch(
-                arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION
-                )
-            )
-        } else if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED &&
-            Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
-        ) {
-            // for android 9 and lower
-            bluetoothPermission.launch(
-                arrayOf(
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                )
-            )
-        } else {
-            try {
-                pairedDevice.socket.connect()
-            } catch (e: IOException) {
-                e.message?.let { Log.d("Paired Device ConnectThread", it) }
-                runOnUiThread { Toast.makeText(this@MainActivity, getString(R.string.pairing_failed), Toast.LENGTH_SHORT).show() }
             }
         }
     }

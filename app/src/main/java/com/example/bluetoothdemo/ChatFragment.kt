@@ -30,8 +30,6 @@ class ChatFragment : Fragment() {
         deviceName = view.findViewById(R.id.connectedDeviceName)
 
         mainViewModel.connectedServer.observe(viewLifecycleOwner) {
-            println("qwer setConnectedServer observe")
-
             deviceName.text = it.deviceName
         }
     }

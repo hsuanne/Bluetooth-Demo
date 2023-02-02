@@ -24,8 +24,11 @@ class MainViewModel: ViewModel() {
         discoveredDevices.value = listOf()
     }
 
-    fun removeDeviceAfterPaired(device: FoundDevice) {
-        discoveredDevices.postValue(discoveredDevices.value?.minus(device))
+    fun removeDeviceAfterPaired(device: FoundDevice): Boolean {
+        return if (discoveredDevices.value?.contains(device) == true) {
+            discoveredDevices.postValue(discoveredDevices.value?.minus(device))
+            true
+        } else false
     }
 
     fun setConnectedServer(device: FoundDevice) {

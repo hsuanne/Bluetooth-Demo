@@ -4,6 +4,4 @@
     <string name="bluetooth_not_supported">This device doesn\'t support Bluetooth.</string>
     <string name="pairing_failed">Pairing Failed</string>
     <string name="permission_enabled">Permissions enabled, please retry again</string>
-    <!-- TODO: Remove or change this placeholder text -->
-    <string name="hello_blank_fragment">Hello blank fragment</string>
 </resources>
