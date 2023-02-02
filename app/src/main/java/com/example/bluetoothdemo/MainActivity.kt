@@ -17,6 +17,7 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import java.io.IOException
@@ -47,7 +48,7 @@ class MainActivity : AppCompatActivity() {
         val bluetoothManager: BluetoothManager = getSystemService(BluetoothManager::class.java)
         val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
 
-        mainViewModel = MainViewModel()
+        mainViewModel = ViewModelProvider(this)[MainViewModel::class.java]
         mainHandler = Handler(Looper.getMainLooper(), object : Handler.Callback {
             override fun handleMessage(message: Message): Boolean {
                 when(message.what) {
@@ -71,9 +72,16 @@ class MainActivity : AppCompatActivity() {
         discoveredDeviceRecyclerView = findViewById(R.id.discoverDeviceRecyclerView)
 
         pairedDevicesAdapter = PairedDevicesAdapter {
-            val bluetoothSocket = mConnectThread.getConnectedSocket()?: return@PairedDevicesAdapter
-            val hello = byteArrayOf(0x48, 101, 108, 108, 111)
-            if (bluetoothSocket.isConnected) myBluetoothService.ConnectedThread(bluetoothSocket).write(hello)
+            mainViewModel.setConnectedServer(it)
+            val pairedDeviceSocket = it.socket
+            Log.d("pairedDeviceSocket", "isConnected: ${pairedDeviceSocket.isConnected}")
+
+            if (!pairedDeviceSocket.isConnected) {
+                ConnectThread(it, bluetoothAdapter).apply { start() }
+            } else {
+                writeMsg(pairedDeviceSocket)
+                navToChatFrag()
+            }
         }
 
         discoveredDevicesAdapter = DiscoveredDevicesAdapter {
@@ -114,10 +122,22 @@ class MainActivity : AppCompatActivity() {
         // Enabling discoverability (= serve as host to let other devices find you)
         // this is only necessary when you want your app to host a server socket that accepts incoming connections
         // however, it's better to let app be able to host, so that we can ensure that app can accept incoming connections
-        enableDiscoverability()
+        enableDiscoverability(bluetoothAdapter)
 
         // Connect as a server
         connectAsServer(bluetoothAdapter)
+    }
+
+    private fun writeMsg(pairedDeviceSocket: BluetoothSocket) {
+        val hello = byteArrayOf(0x48, 101, 108, 108, 111)
+        myBluetoothService.ConnectedThread(pairedDeviceSocket).write(hello)
+    }
+
+    private fun navToChatFrag() {
+        val fragmentTransaction = supportFragmentManager.beginTransaction()
+        fragmentTransaction.replace(R.id.fragmentContainer, ChatFragment())
+            .addToBackStack("Chat Fragment")
+            .commit()
     }
 
     private fun getBTPermission(): ActivityResultLauncher<Array<String>> {
@@ -145,16 +165,7 @@ class MainActivity : AppCompatActivity() {
         AcceptThread(bluetoothAdapter).start()
     }
 
-    private fun enableDiscoverability() {
-        val requestMultiplePermissions =
-            registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-                if (permissions.entries.any { !it.value }) {
-                    showToast(getString(R.string.prompt_bluetooth_permission))
-                } else {
-                    Toast.makeText(this@MainActivity, getString(R.string.permission_enabled), Toast.LENGTH_SHORT).show()
-                }
-            }
-
+    private fun enableDiscoverability(bluetoothAdapter: BluetoothAdapter?) {
         hostButton.setOnClickListener {
             val requestCode = 1
             val discoverableIntent: Intent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
@@ -167,7 +178,7 @@ class MainActivity : AppCompatActivity() {
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
             ) {
                 // for android 12 and higher
-                requestMultiplePermissions.launch(
+                bluetoothPermission.launch(
                     arrayOf(
                         Manifest.permission.BLUETOOTH_SCAN,
                         Manifest.permission.BLUETOOTH_CONNECT
@@ -180,7 +191,7 @@ class MainActivity : AppCompatActivity() {
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
             ){
                 // for android 10 and higher
-                requestMultiplePermissions.launch(
+                bluetoothPermission.launch(
                     arrayOf(
                         Manifest.permission.ACCESS_FINE_LOCATION
                     )
@@ -192,12 +203,15 @@ class MainActivity : AppCompatActivity() {
                 Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
             ) {
                 // for android 9 and lower
-                requestMultiplePermissions.launch(
+                bluetoothPermission.launch(
                     arrayOf(
                         Manifest.permission.ACCESS_COARSE_LOCATION
                     )
                 )
-            } else startActivityForResult(discoverableIntent, requestCode)
+            } else {
+                if (bluetoothAdapter?.isEnabled == false) bluetoothAdapter.enable()
+                startActivityForResult(discoverableIntent, requestCode)
+            }
         }
     }
 
@@ -345,13 +359,12 @@ class MainActivity : AppCompatActivity() {
         bluetoothAdapter: BluetoothAdapter?
     ) {
         pairedDeviceButton.setOnClickListener {
-            getPairedDevices(bluetoothAdapter, bluetoothPermission)
+            getPairedDevices(bluetoothAdapter)
         }
     }
 
     private fun getPairedDevices(
-        bluetoothAdapter: BluetoothAdapter?,
-        requestBTPermission: ActivityResultLauncher<Array<String>>
+        bluetoothAdapter: BluetoothAdapter?
     ) {
         if (ActivityCompat.checkSelfPermission(
                 this,
@@ -360,7 +373,7 @@ class MainActivity : AppCompatActivity() {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
         ) {
             // for android 12 and higher
-            requestBTPermission.launch(
+            bluetoothPermission.launch(
                 arrayOf(
                     Manifest.permission.BLUETOOTH_SCAN,
                     Manifest.permission.BLUETOOTH_CONNECT
@@ -373,7 +386,7 @@ class MainActivity : AppCompatActivity() {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
         ) {
             // for android 10 and higher
-            requestBTPermission.launch(
+            bluetoothPermission.launch(
                 arrayOf(
                     Manifest.permission.ACCESS_FINE_LOCATION
                 )
@@ -385,7 +398,7 @@ class MainActivity : AppCompatActivity() {
             Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
         ) {
             // for android 9 and lower
-            requestBTPermission.launch(
+            bluetoothPermission.launch(
                 arrayOf(
                     Manifest.permission.ACCESS_COARSE_LOCATION
                 )
@@ -532,8 +545,8 @@ class MainActivity : AppCompatActivity() {
                 socket?.also {
                     manageMyConnectedSocket(it)
                     // call close() immediately after finding a socket
-                    mmServerSocket?.close()
-                    shouldLoop = false
+//                    mmServerSocket?.close()
+//                    shouldLoop = false
                 }
             }
         }
@@ -554,25 +567,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     private inner class ConnectThread(val foundDevice: FoundDevice, val bluetoothAdapter: BluetoothAdapter?) : Thread() {
-
         private val mmSocket: BluetoothSocket? by lazy(LazyThreadSafetyMode.NONE) {
             foundDevice.socket
         }
 
-        public override fun run() {
+        override fun run() {
             // Cancel discovery because it otherwise slows down the connection.
             if (ActivityCompat.checkSelfPermission(
                     this@MainActivity,
                     Manifest.permission.BLUETOOTH_SCAN
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
-                // TODO: Consider calling
-                //    ActivityCompat#requestPermissions
-                // here to request the missing permissions, and then overriding
-                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                //                                          int[] grantResults)
-                // to handle the case where the user grants the permission. See the documentation
-                // for ActivityCompat#requestPermissions for more details.
                 return
             }
             bluetoothAdapter?.cancelDiscovery()
@@ -594,8 +599,15 @@ class MainActivity : AppCompatActivity() {
         }
 
         private fun manageMyConnectedSocket(bluetoothSocket: BluetoothSocket) {
-            mainViewModel.removeDeviceAfterPaired(foundDevice)
-            getPairedDevices(bluetoothAdapter, bluetoothPermission)
+            val isClickFromDiscoverDevices = mainViewModel.removeDeviceAfterPaired(foundDevice)
+            if (isClickFromDiscoverDevices) {
+                getPairedDevices(bluetoothAdapter)
+                cancel()
+            }
+            else {
+                writeMsg(bluetoothSocket)
+                navToChatFrag()
+            }
         }
 
         // Closes the client socket and causes the thread to finish.
@@ -605,10 +617,6 @@ class MainActivity : AppCompatActivity() {
             } catch (e: IOException) {
                 Log.e(TAG, "Could not close the client socket", e)
             }
-        }
-
-        fun getConnectedSocket(): BluetoothSocket? {
-            return mmSocket
         }
     }
 
