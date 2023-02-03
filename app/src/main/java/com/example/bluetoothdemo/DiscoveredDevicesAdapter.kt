@@ -9,7 +9,7 @@ import androidx.recyclerview.widget.RecyclerView
 
 class DiscoveredDevicesAdapter(
     val onDeviceClick: (device: FoundDevice) -> Unit
-): ListAdapter<FoundDevice, RecyclerView.ViewHolder>(DiffCallback()) {
+): ListAdapter<FoundDevice, RecyclerView.ViewHolder>(FoundDeviceDiffCallback()) {
 
     class DiscoveredDeviceInfoViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         private val deviceName: TextView = view.findViewById(R.id.deviceName)

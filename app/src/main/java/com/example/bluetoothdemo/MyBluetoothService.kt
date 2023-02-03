@@ -26,7 +26,7 @@ class MyBluetoothService(
 
         private val mmInStream: InputStream = mmSocket.inputStream
         private val mmOutStream: OutputStream = mmSocket.outputStream
-        private val mmBuffer: ByteArray = ByteArray(1024) // mmBuffer store for the stream
+        private var mmBuffer: ByteArray = ByteArray(1024) // mmBuffer store for the stream
 
         override fun run() {
             var numBytes: Int // bytes returned from read()
@@ -44,7 +44,8 @@ class MyBluetoothService(
                 // Send the obtained bytes to the UI activity.
                 val readMsg = handler.obtainMessage(
                     MESSAGE_READ, numBytes, -1,
-                    mmBuffer)
+                    mmBuffer
+                )
                 readMsg.sendToTarget()
             }
         }
@@ -68,8 +69,9 @@ class MyBluetoothService(
 
             // Share the sent message with the UI activity.
             val writtenMsg = handler.obtainMessage(
-                MESSAGE_WRITE, -1, -1, mmBuffer)
-            println("qwer write: $writtenMsg")
+                MESSAGE_WRITE, -1, -1, mmBuffer
+            )
+            Log.d("MyBluetoothService", writtenMsg.toString())
 
             writtenMsg.sendToTarget()
         }

@@ -9,7 +9,7 @@ data class FoundDevice(
     val socket: BluetoothSocket,
 )
 
-class DiffCallback : DiffUtil.ItemCallback<FoundDevice>() {
+class FoundDeviceDiffCallback : DiffUtil.ItemCallback<FoundDevice>() {
     override fun areItemsTheSame(oldItem: FoundDevice, newItem: FoundDevice): Boolean {
         return oldItem.deviceName == newItem.deviceName
     }

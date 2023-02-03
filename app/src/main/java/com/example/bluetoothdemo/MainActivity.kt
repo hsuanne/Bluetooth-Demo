@@ -54,7 +54,7 @@ class MainActivity : AppCompatActivity() {
                 when(message.what) {
                     MESSAGE_READ -> {
                         val readBuf = message.obj as ByteArray
-                        val readMsg = String(readBuf)
+                        val readMsg = String(readBuf, 0, message.arg1)
                         messageTextView.text = readMsg
                     }
                 }
@@ -79,7 +79,6 @@ class MainActivity : AppCompatActivity() {
             if (!pairedDeviceSocket.isConnected) {
                 ConnectThread(it, bluetoothAdapter).apply { start() }
             } else {
-                writeMsg(pairedDeviceSocket)
                 navToChatFrag()
             }
         }
@@ -128,7 +127,7 @@ class MainActivity : AppCompatActivity() {
         connectAsServer(bluetoothAdapter)
     }
 
-    private fun writeMsg(pairedDeviceSocket: BluetoothSocket) {
+    fun writeMsg(pairedDeviceSocket: BluetoothSocket) {
         val hello = byteArrayOf(0x48, 101, 108, 108, 111)
         myBluetoothService.ConnectedThread(pairedDeviceSocket).write(hello)
     }
@@ -552,8 +551,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         private fun manageMyConnectedSocket(bluetoothSocket: BluetoothSocket) {
-            // todo: transfer data
             myBluetoothService.ConnectedThread(bluetoothSocket).start()
+            Log.d("manageMyConnectedSocket", "start transferring data")
+            // todo: navToChatFrag only when connected to client
+//            navToChatFrag()
         }
 
         // Closes the connect socket and causes the thread to finish.
@@ -602,10 +603,11 @@ class MainActivity : AppCompatActivity() {
             val isClickFromDiscoverDevices = mainViewModel.removeDeviceAfterPaired(foundDevice)
             if (isClickFromDiscoverDevices) {
                 getPairedDevices(bluetoothAdapter)
-                cancel()
+//                cancel()
             }
             else {
-                writeMsg(bluetoothSocket)
+                mainViewModel.setMyBTSocket(bluetoothSocket)
+                mainViewModel.setMyBTService(myBluetoothService)
                 navToChatFrag()
             }
         }
