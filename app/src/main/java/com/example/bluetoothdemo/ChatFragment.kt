@@ -50,7 +50,13 @@ class ChatFragment : Fragment() {
             if (mainViewModel.isServer) mainViewModel.connectedClient.value
             else mainViewModel.connectedServer.value
 
-        chatViewModel.latestMsg.observe(viewLifecycleOwner) {
+        // only for client
+        chatViewModel.latestWrittenMsg.observe(viewLifecycleOwner) {
+            chatMsgAdapter.submitList(it)
+        }
+
+        // only for server
+        mainViewModel.latestReadMsg.observe(viewLifecycleOwner) {
             chatMsgAdapter.submitList(it)
         }
 

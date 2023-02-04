@@ -28,7 +28,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pairedDeviceButton: Button
     private lateinit var discoverDeviceButton: Button
     private lateinit var hostButton: Button
-    private lateinit var messageTextView: TextView
     private lateinit var pairedDeviceRecyclerView: RecyclerView
     private lateinit var discoveredDeviceRecyclerView: RecyclerView
     private lateinit var pairedDevicesAdapter: PairedDevicesAdapter
@@ -56,7 +55,7 @@ class MainActivity : AppCompatActivity() {
                     MESSAGE_READ -> {
                         val readBuf = message.obj as ByteArray
                         val readMsg = String(readBuf, 0, message.arg1)
-                        messageTextView.text = readMsg
+                        mainViewModel.setLatestReadMsg(readMsg)
                     }
                 }
                 return true
@@ -68,7 +67,6 @@ class MainActivity : AppCompatActivity() {
         pairedDeviceButton = findViewById(R.id.pairedDeviceButton)
         discoverDeviceButton = findViewById(R.id.discoverDeviceButton)
         hostButton = findViewById(R.id.hostButton)
-        messageTextView = findViewById(R.id.transferredData)
         pairedDeviceRecyclerView = findViewById(R.id.pairedDeviceRecyclerView)
         discoveredDeviceRecyclerView = findViewById(R.id.discoverDeviceRecyclerView)
 
@@ -99,12 +97,15 @@ class MainActivity : AppCompatActivity() {
         discoveredDeviceRecyclerView.layoutManager = LinearLayoutManager(this)
         discoveredDeviceRecyclerView.adapter = discoveredDevicesAdapter
 
-        mainViewModel.pairedDevices.observe(this) {
-            pairedDevicesAdapter.submitList(it)
-        }
+        // observe MainViewModel
+        with(mainViewModel) {
+            pairedDevices.observe(this@MainActivity) {
+                pairedDevicesAdapter.submitList(it)
+            }
 
-        mainViewModel.discoveredDevices.observe(this) {
-            discoveredDevicesAdapter.submitList(it)
+            discoveredDevices.observe(this@MainActivity) {
+                discoveredDevicesAdapter.submitList(it)
+            }
         }
 
         // check if device supports bluetooth

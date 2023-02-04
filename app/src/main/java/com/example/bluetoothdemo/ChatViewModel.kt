@@ -4,11 +4,11 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 
 class ChatViewModel: ViewModel() {
-    val latestMsg = MutableLiveData<MutableList<String>>()
-    private val _latestMsg = mutableListOf<String>()
+    val latestWrittenMsg = MutableLiveData<List<String>>()
+    private val _latestWrittenMsg = mutableListOf<String>()
 
     fun setLatestMsg(msg: String) {
-        _latestMsg.add(msg)
-        latestMsg.value = _latestMsg
+        _latestWrittenMsg.add(msg)
+        latestWrittenMsg.value = _latestWrittenMsg.toList()
     }
 }
