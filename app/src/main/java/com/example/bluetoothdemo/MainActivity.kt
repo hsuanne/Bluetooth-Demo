@@ -11,7 +11,6 @@ import android.content.pm.PackageManager
 import android.os.*
 import android.util.Log
 import android.widget.Button
-import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
@@ -72,9 +71,14 @@ class MainActivity : AppCompatActivity() {
 
         pairedDevicesAdapter = PairedDevicesAdapter {
             if (mainViewModel.isServer) {
-                mainViewModel.setConnectedClient(it.deviceName)
-                mainViewModel.setConnectedServer(currentDeviceName)
-                navToChatFrag()
+                // check which device is connected to serverSocket
+                if (it.deviceName == mainViewModel.connectedClient.value) {
+                    mainViewModel.setConnectedClient(it.deviceName)
+                    mainViewModel.setConnectedServer(currentDeviceName)
+                    navToChatFrag()
+                } else {
+                    Toast.makeText(this, "This device is not a connected client.", Toast.LENGTH_SHORT).show()
+                }
             } else { // is Client
                 val pairedDeviceSocket = it.socket
                 Log.d("pairedDeviceSocket", "isConnected: ${pairedDeviceSocket.isConnected}")
@@ -121,7 +125,10 @@ class MainActivity : AppCompatActivity() {
         // The process is asynchronous and returns a boolean value indicating whether discovery has successfully started.
         // The discovery process usually involves an inquiry scan of about 12 seconds
         // Register for broadcasts when a device is discovered.
-        val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
+        val filter = IntentFilter().apply {
+            addAction(BluetoothDevice.ACTION_FOUND)
+            addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
+        }
         registerReceiver(receiver, filter)
         discoverDevices(bluetoothAdapter)
 
@@ -227,13 +234,13 @@ class MainActivity : AppCompatActivity() {
     // Create a BroadcastReceiver for ACTION_FOUND.
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
+            val device: BluetoothDevice? =
+                intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
             when(intent.action) {
                 BluetoothDevice.ACTION_FOUND -> {
                     // Discovery has found a device. Get the BluetoothDevice
                     // object and its info from the Intent.
-                    val device: BluetoothDevice? =
-                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
-                    Log.d("MainActivity onReceive: ", "${device?.name}, ${device?.address}")
+                    Log.d("MainActivity BroadcastReceiver onReceive ACTION_FOUND: ", "${device?.name}, ${device?.address}")
 
                     if (ActivityCompat.checkSelfPermission(
                             this@MainActivity,
@@ -284,6 +291,10 @@ class MainActivity : AppCompatActivity() {
                             mainViewModel.addToDiscoveredDevices(discoveredDevice)
                         }
                     }
+                }
+                BluetoothDevice.ACTION_ACL_CONNECTED -> {
+                    Log.d("MainActivity BroadcastReceiver onReceive ACTION_ACL_CONNECTED: ", "${device?.name}, ${device?.address}")
+                    device?.name?.let { mainViewModel.setConnectedClient(it) }
                 }
             }
         }
