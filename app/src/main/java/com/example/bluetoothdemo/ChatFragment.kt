@@ -1,20 +1,16 @@
 package com.example.bluetoothdemo
 
-import android.bluetooth.BluetoothSocket
 import android.os.Bundle
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.textfield.TextInputEditText
-import com.google.android.material.textfield.TextInputLayout
 
 class ChatFragment : Fragment() {
     private lateinit var mainViewModel: MainViewModel
@@ -50,9 +46,9 @@ class ChatFragment : Fragment() {
         chatRecyclerView.layoutManager = LinearLayoutManager(requireContext())
         chatRecyclerView.adapter = chatMsgAdapter
 
-        mainViewModel.connectedServer.observe(viewLifecycleOwner) {
-            deviceName.text = it.deviceName
-        }
+        deviceName.text =
+            if (mainViewModel.isServer) mainViewModel.connectedClient.value
+            else mainViewModel.connectedServer.value
 
         chatViewModel.latestMsg.observe(viewLifecycleOwner) {
             chatMsgAdapter.submitList(it)

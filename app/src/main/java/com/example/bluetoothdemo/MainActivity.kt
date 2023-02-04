@@ -38,6 +38,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var myBluetoothService: MyBluetoothService
     private lateinit var mConnectThread: ConnectThread
     private val bluetoothPermission = getBTPermission()
+    private lateinit var currentDeviceName: String
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -72,14 +73,19 @@ class MainActivity : AppCompatActivity() {
         discoveredDeviceRecyclerView = findViewById(R.id.discoverDeviceRecyclerView)
 
         pairedDevicesAdapter = PairedDevicesAdapter {
-            mainViewModel.setConnectedServer(it)
-            val pairedDeviceSocket = it.socket
-            Log.d("pairedDeviceSocket", "isConnected: ${pairedDeviceSocket.isConnected}")
-
-            if (!pairedDeviceSocket.isConnected) {
-                ConnectThread(it, bluetoothAdapter).apply { start() }
-            } else {
+            if (mainViewModel.isServer) {
+                mainViewModel.setConnectedClient(it.deviceName)
+                mainViewModel.setConnectedServer(currentDeviceName)
                 navToChatFrag()
+            } else { // is Client
+                val pairedDeviceSocket = it.socket
+                Log.d("pairedDeviceSocket", "isConnected: ${pairedDeviceSocket.isConnected}")
+
+                if (!pairedDeviceSocket.isConnected) {
+                    ConnectThread(it, bluetoothAdapter).apply { start() }
+                } else {
+                    navToChatFrag()
+                }
             }
         }
 
@@ -125,11 +131,6 @@ class MainActivity : AppCompatActivity() {
 
         // Connect as a server
         connectAsServer(bluetoothAdapter)
-    }
-
-    fun writeMsg(pairedDeviceSocket: BluetoothSocket) {
-        val hello = byteArrayOf(0x48, 101, 108, 108, 111)
-        myBluetoothService.ConnectedThread(pairedDeviceSocket).write(hello)
     }
 
     private fun navToChatFrag() {
@@ -452,6 +453,8 @@ class MainActivity : AppCompatActivity() {
             }
 
         if (bluetoothAdapter?.isEnabled == false) {
+            currentDeviceName = bluetoothAdapter.name
+
             if (ActivityCompat.checkSelfPermission(
                     this,
                     Manifest.permission.BLUETOOTH_CONNECT
@@ -467,13 +470,14 @@ class MainActivity : AppCompatActivity() {
                     )
                 } else {
                     // for android 11 and lower
-                    // todo: not yet tested, but should work...
                     val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
                     requestBluetooth.launch(enableBtIntent)
                 }
             } else {
                 bluetoothAdapter.enable()
             }
+        } else {
+            currentDeviceName = bluetoothAdapter?.name.toString()
         }
     }
 
@@ -551,10 +555,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         private fun manageMyConnectedSocket(bluetoothSocket: BluetoothSocket) {
+            mainViewModel.isServer = true
             myBluetoothService.ConnectedThread(bluetoothSocket).start()
             Log.d("manageMyConnectedSocket", "start transferring data")
-            // todo: navToChatFrag only when connected to client
-//            navToChatFrag()
         }
 
         // Closes the connect socket and causes the thread to finish.
@@ -572,6 +575,8 @@ class MainActivity : AppCompatActivity() {
             foundDevice.socket
         }
 
+        private lateinit var clientDeviceName: String
+
         override fun run() {
             // Cancel discovery because it otherwise slows down the connection.
             if (ActivityCompat.checkSelfPermission(
@@ -582,6 +587,7 @@ class MainActivity : AppCompatActivity() {
                 return
             }
             bluetoothAdapter?.cancelDiscovery()
+            clientDeviceName = bluetoothAdapter?.name.toString()
 
             mmSocket?.let { socket ->
                 // Connect to the remote device through the socket. This call blocks
@@ -600,12 +606,15 @@ class MainActivity : AppCompatActivity() {
         }
 
         private fun manageMyConnectedSocket(bluetoothSocket: BluetoothSocket) {
+            mainViewModel.isServer = false
             val isClickFromDiscoverDevices = mainViewModel.removeDeviceAfterPaired(foundDevice)
             if (isClickFromDiscoverDevices) {
                 getPairedDevices(bluetoothAdapter)
-//                cancel()
+                cancel()
             }
             else {
+                mainViewModel.setConnectedClient(clientDeviceName)
+                mainViewModel.setConnectedServer(foundDevice.deviceName)
                 mainViewModel.setMyBTSocket(bluetoothSocket)
                 mainViewModel.setMyBTService(myBluetoothService)
                 navToChatFrag()
