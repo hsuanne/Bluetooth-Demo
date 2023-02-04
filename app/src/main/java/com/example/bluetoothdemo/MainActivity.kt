@@ -11,7 +11,6 @@ import android.content.pm.PackageManager
 import android.os.*
 import android.util.Log
 import android.widget.Button
-import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
@@ -28,7 +27,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pairedDeviceButton: Button
     private lateinit var discoverDeviceButton: Button
     private lateinit var hostButton: Button
-    private lateinit var messageTextView: TextView
     private lateinit var pairedDeviceRecyclerView: RecyclerView
     private lateinit var discoveredDeviceRecyclerView: RecyclerView
     private lateinit var pairedDevicesAdapter: PairedDevicesAdapter
@@ -38,6 +36,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var myBluetoothService: MyBluetoothService
     private lateinit var mConnectThread: ConnectThread
     private val bluetoothPermission = getBTPermission()
+    private lateinit var currentDeviceName: String
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,7 +54,7 @@ class MainActivity : AppCompatActivity() {
                     MESSAGE_READ -> {
                         val readBuf = message.obj as ByteArray
                         val readMsg = String(readBuf, 0, message.arg1)
-                        messageTextView.text = readMsg
+                        mainViewModel.setLatestReadMsg(readMsg)
                     }
                 }
                 return true
@@ -67,19 +66,28 @@ class MainActivity : AppCompatActivity() {
         pairedDeviceButton = findViewById(R.id.pairedDeviceButton)
         discoverDeviceButton = findViewById(R.id.discoverDeviceButton)
         hostButton = findViewById(R.id.hostButton)
-        messageTextView = findViewById(R.id.transferredData)
         pairedDeviceRecyclerView = findViewById(R.id.pairedDeviceRecyclerView)
         discoveredDeviceRecyclerView = findViewById(R.id.discoverDeviceRecyclerView)
 
         pairedDevicesAdapter = PairedDevicesAdapter {
-            mainViewModel.setConnectedServer(it)
-            val pairedDeviceSocket = it.socket
-            Log.d("pairedDeviceSocket", "isConnected: ${pairedDeviceSocket.isConnected}")
+            if (mainViewModel.isServer) {
+                // check which device is connected to serverSocket
+                if (it.deviceName == mainViewModel.connectedClient.value) {
+                    mainViewModel.setConnectedClient(it.deviceName)
+                    mainViewModel.setConnectedServer(currentDeviceName)
+                    navToChatFrag()
+                } else {
+                    Toast.makeText(this, "This device is not a connected client.", Toast.LENGTH_SHORT).show()
+                }
+            } else { // is Client
+                val pairedDeviceSocket = it.socket
+                Log.d("pairedDeviceSocket", "isConnected: ${pairedDeviceSocket.isConnected}")
 
-            if (!pairedDeviceSocket.isConnected) {
-                ConnectThread(it, bluetoothAdapter).apply { start() }
-            } else {
-                navToChatFrag()
+                if (!pairedDeviceSocket.isConnected) {
+                    ConnectThread(it, bluetoothAdapter).apply { start() }
+                } else {
+                    navToChatFrag()
+                }
             }
         }
 
@@ -93,12 +101,15 @@ class MainActivity : AppCompatActivity() {
         discoveredDeviceRecyclerView.layoutManager = LinearLayoutManager(this)
         discoveredDeviceRecyclerView.adapter = discoveredDevicesAdapter
 
-        mainViewModel.pairedDevices.observe(this) {
-            pairedDevicesAdapter.submitList(it)
-        }
+        // observe MainViewModel
+        with(mainViewModel) {
+            pairedDevices.observe(this@MainActivity) {
+                pairedDevicesAdapter.submitList(it)
+            }
 
-        mainViewModel.discoveredDevices.observe(this) {
-            discoveredDevicesAdapter.submitList(it)
+            discoveredDevices.observe(this@MainActivity) {
+                discoveredDevicesAdapter.submitList(it)
+            }
         }
 
         // check if device supports bluetooth
@@ -114,7 +125,10 @@ class MainActivity : AppCompatActivity() {
         // The process is asynchronous and returns a boolean value indicating whether discovery has successfully started.
         // The discovery process usually involves an inquiry scan of about 12 seconds
         // Register for broadcasts when a device is discovered.
-        val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
+        val filter = IntentFilter().apply {
+            addAction(BluetoothDevice.ACTION_FOUND)
+            addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
+        }
         registerReceiver(receiver, filter)
         discoverDevices(bluetoothAdapter)
 
@@ -125,11 +139,6 @@ class MainActivity : AppCompatActivity() {
 
         // Connect as a server
         connectAsServer(bluetoothAdapter)
-    }
-
-    fun writeMsg(pairedDeviceSocket: BluetoothSocket) {
-        val hello = byteArrayOf(0x48, 101, 108, 108, 111)
-        myBluetoothService.ConnectedThread(pairedDeviceSocket).write(hello)
     }
 
     private fun navToChatFrag() {
@@ -225,13 +234,13 @@ class MainActivity : AppCompatActivity() {
     // Create a BroadcastReceiver for ACTION_FOUND.
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
+            val device: BluetoothDevice? =
+                intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
             when(intent.action) {
                 BluetoothDevice.ACTION_FOUND -> {
                     // Discovery has found a device. Get the BluetoothDevice
                     // object and its info from the Intent.
-                    val device: BluetoothDevice? =
-                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
-                    Log.d("MainActivity onReceive: ", "${device?.name}, ${device?.address}")
+                    Log.d("MainActivity BroadcastReceiver onReceive ACTION_FOUND: ", "${device?.name}, ${device?.address}")
 
                     if (ActivityCompat.checkSelfPermission(
                             this@MainActivity,
@@ -282,6 +291,10 @@ class MainActivity : AppCompatActivity() {
                             mainViewModel.addToDiscoveredDevices(discoveredDevice)
                         }
                     }
+                }
+                BluetoothDevice.ACTION_ACL_CONNECTED -> {
+                    Log.d("MainActivity BroadcastReceiver onReceive ACTION_ACL_CONNECTED: ", "${device?.name}, ${device?.address}")
+                    device?.name?.let { mainViewModel.setConnectedClient(it) }
                 }
             }
         }
@@ -452,6 +465,8 @@ class MainActivity : AppCompatActivity() {
             }
 
         if (bluetoothAdapter?.isEnabled == false) {
+            currentDeviceName = bluetoothAdapter.name
+
             if (ActivityCompat.checkSelfPermission(
                     this,
                     Manifest.permission.BLUETOOTH_CONNECT
@@ -467,13 +482,14 @@ class MainActivity : AppCompatActivity() {
                     )
                 } else {
                     // for android 11 and lower
-                    // todo: not yet tested, but should work...
                     val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
                     requestBluetooth.launch(enableBtIntent)
                 }
             } else {
                 bluetoothAdapter.enable()
             }
+        } else {
+            currentDeviceName = bluetoothAdapter?.name.toString()
         }
     }
 
@@ -551,10 +567,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         private fun manageMyConnectedSocket(bluetoothSocket: BluetoothSocket) {
+            mainViewModel.isServer = true
             myBluetoothService.ConnectedThread(bluetoothSocket).start()
             Log.d("manageMyConnectedSocket", "start transferring data")
-            // todo: navToChatFrag only when connected to client
-//            navToChatFrag()
         }
 
         // Closes the connect socket and causes the thread to finish.
@@ -572,6 +587,8 @@ class MainActivity : AppCompatActivity() {
             foundDevice.socket
         }
 
+        private lateinit var clientDeviceName: String
+
         override fun run() {
             // Cancel discovery because it otherwise slows down the connection.
             if (ActivityCompat.checkSelfPermission(
@@ -582,6 +599,7 @@ class MainActivity : AppCompatActivity() {
                 return
             }
             bluetoothAdapter?.cancelDiscovery()
+            clientDeviceName = bluetoothAdapter?.name.toString()
 
             mmSocket?.let { socket ->
                 // Connect to the remote device through the socket. This call blocks
@@ -600,12 +618,15 @@ class MainActivity : AppCompatActivity() {
         }
 
         private fun manageMyConnectedSocket(bluetoothSocket: BluetoothSocket) {
+            mainViewModel.isServer = false
             val isClickFromDiscoverDevices = mainViewModel.removeDeviceAfterPaired(foundDevice)
             if (isClickFromDiscoverDevices) {
                 getPairedDevices(bluetoothAdapter)
-//                cancel()
+                cancel()
             }
             else {
+                mainViewModel.setConnectedClient(clientDeviceName)
+                mainViewModel.setConnectedServer(foundDevice.deviceName)
                 mainViewModel.setMyBTSocket(bluetoothSocket)
                 mainViewModel.setMyBTService(myBluetoothService)
                 navToChatFrag()
