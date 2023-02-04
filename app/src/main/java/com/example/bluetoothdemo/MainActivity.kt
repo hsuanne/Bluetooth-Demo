@@ -370,6 +370,7 @@ class MainActivity : AppCompatActivity() {
     private fun checkPairedDevices(
         bluetoothAdapter: BluetoothAdapter?
     ) {
+        getPairedDevices(bluetoothAdapter)
         pairedDeviceButton.setOnClickListener {
             getPairedDevices(bluetoothAdapter)
         }
