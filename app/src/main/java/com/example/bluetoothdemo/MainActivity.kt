@@ -465,8 +465,6 @@ class MainActivity : AppCompatActivity() {
             }
 
         if (bluetoothAdapter?.isEnabled == false) {
-            currentDeviceName = bluetoothAdapter.name
-
             if (ActivityCompat.checkSelfPermission(
                     this,
                     Manifest.permission.BLUETOOTH_CONNECT
