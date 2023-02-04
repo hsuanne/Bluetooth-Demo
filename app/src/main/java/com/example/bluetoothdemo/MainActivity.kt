@@ -288,7 +288,8 @@ class MainActivity : AppCompatActivity() {
                             val deviceSocket = device.createRfcommSocketToServiceRecord(MY_UUID)
                             val discoveredDevice =
                                 FoundDevice(deviceName, deviceHardwareAddress, deviceSocket)
-                            mainViewModel.addToDiscoveredDevices(discoveredDevice)
+                            if (mainViewModel.discoveredDevices.value?.contains(discoveredDevice) == false)
+                                mainViewModel.addToDiscoveredDevices(discoveredDevice)
                         }
                     }
                 }
