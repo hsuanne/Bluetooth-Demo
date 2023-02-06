@@ -10,8 +10,8 @@ class MainViewModel: ViewModel() {
     val discoveredDevices = MutableLiveData<List<FoundDevice>>()
     val connectedServer = MutableLiveData<String>()
     val connectedClient = MutableLiveData<String>()
-    val latestReadMsg = MutableLiveData<List<String>>()
-    private val _latestReadMsg = mutableListOf<String>()
+    val readMsgFromServer = MutableLiveData<List<String>>()
+    private val _readMsgFromServer = mutableListOf<String>()
     private lateinit var myBluetoothService: MyBluetoothService
     private lateinit var myBluetoothSocket: BluetoothSocket
 
@@ -54,9 +54,14 @@ class MainViewModel: ViewModel() {
         myBluetoothSocket = bluetoothSocket
     }
 
-    fun setLatestReadMsg(msg: String) {
-        _latestReadMsg.add(msg)
-        latestReadMsg.value = _latestReadMsg.toList()
+    fun addReadMsgFromServer(msg: String) {
+        _readMsgFromServer.add(msg)
+        readMsgFromServer.value = _readMsgFromServer.toList()
+    }
+
+    fun clearReadMsgFromServer() {
+        _readMsgFromServer.clear()
+        readMsgFromServer.value = _readMsgFromServer.toList()
     }
 
     fun writeMsg(message: String) {

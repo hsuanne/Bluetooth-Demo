@@ -54,7 +54,7 @@ class MainActivity : AppCompatActivity() {
                     MESSAGE_READ -> {
                         val readBuf = message.obj as ByteArray
                         val readMsg = String(readBuf, 0, message.arg1)
-                        mainViewModel.setLatestReadMsg(readMsg)
+                        mainViewModel.addReadMsgFromServer(readMsg)
                     }
                 }
                 return true
