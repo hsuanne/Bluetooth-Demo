@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 
 class MainViewModel: ViewModel() {
     var isServer: Boolean = false
+    val isClientConnecting = MutableLiveData<Boolean>()
     val pairedDevices = MutableLiveData<List<FoundDevice>>()
     val discoveredDevices = MutableLiveData<List<FoundDevice>>()
     val connectedServer = MutableLiveData<String>()
@@ -67,5 +68,9 @@ class MainViewModel: ViewModel() {
     fun writeMsg(message: String) {
         val msg = message.toByteArray()
         myBluetoothService.ConnectedThread(myBluetoothSocket).write(msg)
+    }
+
+    fun setIsClientConnecting(isConnecting: Boolean) {
+        isClientConnecting.postValue(isConnecting)
     }
 }

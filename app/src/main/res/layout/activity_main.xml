@@ -62,6 +62,17 @@
         app:layout_constraintTop_toTopOf="@id/discoverDeviceButton"
         app:layout_constraintBottom_toBottomOf="@id/discoverDeviceButton"/>
 
+    <ProgressBar
+        android:id="@+id/connectProgress"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:indeterminateTint="@color/baby_blue"
+        android:visibility="invisible"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/pairedDeviceRecyclerView"
+        app:layout_constraintBottom_toBottomOf="@id/pairedDeviceRecyclerView" />
+
     <FrameLayout
         android:id="@+id/fragmentContainer"
         android:layout_width="match_parent"
