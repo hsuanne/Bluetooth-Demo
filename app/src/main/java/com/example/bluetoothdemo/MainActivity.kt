@@ -302,6 +302,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun discoverDevices(bluetoothAdapter: BluetoothAdapter?) {
+        if (mainViewModel.pairedDevices.value.isNullOrEmpty()) getPairedDevices(bluetoothAdapter)
         val requestMultiplePermissions =
             registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
                 permissions.entries.forEach {
