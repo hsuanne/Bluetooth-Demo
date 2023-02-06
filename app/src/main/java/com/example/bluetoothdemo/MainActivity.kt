@@ -302,7 +302,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun discoverDevices(bluetoothAdapter: BluetoothAdapter?) {
-        if (mainViewModel.pairedDevices.value.isNullOrEmpty()) getPairedDevices(bluetoothAdapter)
         val requestMultiplePermissions =
             registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
                 permissions.entries.forEach {
@@ -316,6 +315,9 @@ class MainActivity : AppCompatActivity() {
                     } else {
                         if (it.key != "android.permission.ACCESS_FINE_LOCATION" && bluetoothAdapter?.isEnabled == false) bluetoothAdapter.enable()
                         Toast.makeText(this, "Permissions enabled, please click 'discover devices' again.", Toast.LENGTH_SHORT).show()
+                        if (mainViewModel.pairedDevices.value.isNullOrEmpty()) {
+                            getPairedDevices(bluetoothAdapter)
+                        }
                     }
                 }
             }
