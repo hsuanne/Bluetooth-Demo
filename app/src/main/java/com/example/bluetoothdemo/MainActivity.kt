@@ -10,7 +10,9 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.*
 import android.util.Log
+import android.view.View
 import android.widget.Button
+import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
@@ -29,6 +31,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var hostButton: Button
     private lateinit var pairedDeviceRecyclerView: RecyclerView
     private lateinit var discoveredDeviceRecyclerView: RecyclerView
+    private lateinit var connectProgress: ProgressBar
     private lateinit var pairedDevicesAdapter: PairedDevicesAdapter
     private lateinit var discoveredDevicesAdapter: DiscoveredDevicesAdapter
     private lateinit var mainViewModel: MainViewModel
@@ -54,7 +57,7 @@ class MainActivity : AppCompatActivity() {
                     MESSAGE_READ -> {
                         val readBuf = message.obj as ByteArray
                         val readMsg = String(readBuf, 0, message.arg1)
-                        mainViewModel.setLatestReadMsg(readMsg)
+                        mainViewModel.addReadMsgFromServer(readMsg)
                     }
                 }
                 return true
@@ -66,6 +69,7 @@ class MainActivity : AppCompatActivity() {
         pairedDeviceButton = findViewById(R.id.pairedDeviceButton)
         discoverDeviceButton = findViewById(R.id.discoverDeviceButton)
         hostButton = findViewById(R.id.hostButton)
+        connectProgress = findViewById(R.id.connectProgress)
         pairedDeviceRecyclerView = findViewById(R.id.pairedDeviceRecyclerView)
         discoveredDeviceRecyclerView = findViewById(R.id.discoverDeviceRecyclerView)
 
@@ -109,6 +113,11 @@ class MainActivity : AppCompatActivity() {
 
             discoveredDevices.observe(this@MainActivity) {
                 discoveredDevicesAdapter.submitList(it)
+            }
+
+            isClientConnecting.observe(this@MainActivity) {
+                if (it) connectProgress.visibility = View.VISIBLE
+                else connectProgress.visibility = View.INVISIBLE
             }
         }
 
@@ -288,7 +297,8 @@ class MainActivity : AppCompatActivity() {
                             val deviceSocket = device.createRfcommSocketToServiceRecord(MY_UUID)
                             val discoveredDevice =
                                 FoundDevice(deviceName, deviceHardwareAddress, deviceSocket)
-                            mainViewModel.addToDiscoveredDevices(discoveredDevice)
+                            if (mainViewModel.discoveredDevices.value?.contains(discoveredDevice) == false)
+                                mainViewModel.addToDiscoveredDevices(discoveredDevice)
                         }
                     }
                 }
@@ -314,6 +324,9 @@ class MainActivity : AppCompatActivity() {
                     } else {
                         if (it.key != "android.permission.ACCESS_FINE_LOCATION" && bluetoothAdapter?.isEnabled == false) bluetoothAdapter.enable()
                         Toast.makeText(this, "Permissions enabled, please click 'discover devices' again.", Toast.LENGTH_SHORT).show()
+                        if (mainViewModel.pairedDevices.value.isNullOrEmpty()) {
+                            getPairedDevices(bluetoothAdapter)
+                        }
                     }
                 }
             }
@@ -370,6 +383,7 @@ class MainActivity : AppCompatActivity() {
     private fun checkPairedDevices(
         bluetoothAdapter: BluetoothAdapter?
     ) {
+        getPairedDevices(bluetoothAdapter)
         pairedDeviceButton.setOnClickListener {
             getPairedDevices(bluetoothAdapter)
         }
@@ -465,8 +479,6 @@ class MainActivity : AppCompatActivity() {
             }
 
         if (bluetoothAdapter?.isEnabled == false) {
-            currentDeviceName = bluetoothAdapter.name
-
             if (ActivityCompat.checkSelfPermission(
                     this,
                     Manifest.permission.BLUETOOTH_CONNECT
@@ -605,8 +617,11 @@ class MainActivity : AppCompatActivity() {
                 // Connect to the remote device through the socket. This call blocks
                 // until it succeeds or throws an exception.
                 try {
+                    mainViewModel.setIsClientConnecting(true)
                     socket.connect()
+                    mainViewModel.setIsClientConnecting(false)
                 } catch (e: IOException) {
+                    mainViewModel.setIsClientConnecting(false)
                     e.message?.let { Log.d("ConnectThread", it) }
                     runOnUiThread { Toast.makeText(this@MainActivity, getString(R.string.pairing_failed), Toast.LENGTH_SHORT).show() }
                 }

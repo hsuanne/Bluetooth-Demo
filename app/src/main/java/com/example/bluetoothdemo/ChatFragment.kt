@@ -51,12 +51,12 @@ class ChatFragment : Fragment() {
             else mainViewModel.connectedServer.value
 
         // only for client
-        chatViewModel.latestWrittenMsg.observe(viewLifecycleOwner) {
+        chatViewModel.writtenMsgFromClient.observe(viewLifecycleOwner) {
             chatMsgAdapter.submitList(it)
         }
 
         // only for server
-        mainViewModel.latestReadMsg.observe(viewLifecycleOwner) {
+        mainViewModel.readMsgFromServer.observe(viewLifecycleOwner) {
             chatMsgAdapter.submitList(it)
         }
 
@@ -66,5 +66,10 @@ class ChatFragment : Fragment() {
             chatViewModel.setLatestMsg(msg)
             editedMessage.text?.clear()
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        mainViewModel.clearReadMsgFromServer()
     }
 }
