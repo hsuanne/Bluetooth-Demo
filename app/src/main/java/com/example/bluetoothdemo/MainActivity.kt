@@ -295,10 +295,8 @@ class MainActivity : AppCompatActivity() {
                             val deviceName = device.name ?: "Unknown"
                             val deviceHardwareAddress = device.address
                             val deviceSocket = device.createRfcommSocketToServiceRecord(MY_UUID)
-                            val discoveredDevice =
-                                FoundDevice(deviceName, deviceHardwareAddress, deviceSocket)
-                            if (mainViewModel.discoveredDevices.value?.contains(discoveredDevice) == false)
-                                mainViewModel.addToDiscoveredDevices(discoveredDevice)
+                            val discoveredDevice = FoundDevice(deviceName, deviceHardwareAddress, deviceSocket)
+                            mainViewModel.addToDiscoveredDevices(discoveredDevice)
                         }
                     }
                 }
