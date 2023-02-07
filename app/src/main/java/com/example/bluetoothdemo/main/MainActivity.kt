@@ -41,7 +41,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var myBluetoothService: MyBluetoothService
     private lateinit var mConnectThread: ConnectThread
     private val bluetoothPermission = getBTPermission()
-    private lateinit var currentDeviceName: String
+    private var currentDeviceName: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -478,7 +478,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-        if (bluetoothAdapter?.isEnabled == false) {
             if (ActivityCompat.checkSelfPermission(
                     this,
                     Manifest.permission.BLUETOOTH_CONNECT
@@ -498,11 +497,9 @@ class MainActivity : AppCompatActivity() {
                     requestBluetooth.launch(enableBtIntent)
                 }
             } else {
-                bluetoothAdapter.enable()
+                bluetoothAdapter?.enable()
+                currentDeviceName = bluetoothAdapter?.name.toString()
             }
-        } else {
-            currentDeviceName = bluetoothAdapter?.name.toString()
-        }
     }
 
     private fun getBluetoothSocket(bluetoothAdapter: BluetoothAdapter?): BluetoothServerSocket? {
