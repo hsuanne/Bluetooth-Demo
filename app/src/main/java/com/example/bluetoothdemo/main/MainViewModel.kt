@@ -1,8 +1,11 @@
-package com.example.bluetoothdemo
+package com.example.bluetoothdemo.main
 
 import android.bluetooth.BluetoothSocket
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.example.bluetoothdemo.ChatMessage
+import com.example.bluetoothdemo.FoundDevice
+import com.example.bluetoothdemo.MyBluetoothService
 
 class MainViewModel: ViewModel() {
     var isServer: Boolean = false
@@ -12,8 +15,8 @@ class MainViewModel: ViewModel() {
     private val _discoveredDevices = mutableListOf<FoundDevice>()
     val connectedServer = MutableLiveData<String>()
     val connectedClient = MutableLiveData<String>()
-    val chatMessages = MutableLiveData<List<String>>()
-    private val _chatMessages = mutableListOf<String>()
+    val chatMessages = MutableLiveData<List<ChatMessage>>()
+    private val _chatMessages = mutableListOf<ChatMessage>()
     private lateinit var myBluetoothService: MyBluetoothService
     private lateinit var myBluetoothSocket: BluetoothSocket
 
@@ -61,8 +64,8 @@ class MainViewModel: ViewModel() {
         myBluetoothSocket = bluetoothSocket
     }
 
-    fun addChatMessage(msg: String) {
-        _chatMessages.add(msg)
+    fun addChatMessage(chatMessage: ChatMessage) {
+        _chatMessages.add(chatMessage)
         chatMessages.value = _chatMessages.toList()
     }
 
@@ -72,7 +75,7 @@ class MainViewModel: ViewModel() {
     }
 
     fun writeMsg(message: String) {
-        addChatMessage(message)
+        addChatMessage(ChatMessage(message, true))
         val msg = message.toByteArray()
         myBluetoothService.ConnectedThread(myBluetoothSocket).write(msg)
     }

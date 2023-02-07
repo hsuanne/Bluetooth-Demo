@@ -1,4 +1,4 @@
-package com.example.bluetoothdemo
+package com.example.bluetoothdemo.main
 
 import android.view.LayoutInflater
 import android.view.View
@@ -6,6 +6,9 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.example.bluetoothdemo.FoundDevice
+import com.example.bluetoothdemo.FoundDeviceDiffCallback
+import com.example.bluetoothdemo.R
 
 class PairedDevicesAdapter(
     val onDeviceClick: (device: FoundDevice) -> Unit

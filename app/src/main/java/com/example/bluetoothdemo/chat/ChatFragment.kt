@@ -1,4 +1,4 @@
-package com.example.bluetoothdemo
+package com.example.bluetoothdemo.chat
 
 import android.os.Bundle
 import androidx.fragment.app.Fragment
@@ -10,11 +10,12 @@ import android.widget.TextView
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.bluetoothdemo.main.MainViewModel
+import com.example.bluetoothdemo.R
 import com.google.android.material.textfield.TextInputEditText
 
 class ChatFragment : Fragment() {
     private lateinit var mainViewModel: MainViewModel
-    private lateinit var chatViewModel: ChatViewModel
     private lateinit var deviceName: TextView
     private lateinit var editedMessage: TextInputEditText
     private lateinit var sendBtn: ImageView
@@ -36,7 +37,6 @@ class ChatFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         mainViewModel = ViewModelProvider(requireActivity())[MainViewModel::class.java]
-        chatViewModel = ViewModelProvider(this)[ChatViewModel::class.java]
         deviceName = view.findViewById(R.id.connectedDeviceName)
         editedMessage = view.findViewById(R.id.writeMsg)
         sendBtn = view.findViewById(R.id.sendMsgBtn)
