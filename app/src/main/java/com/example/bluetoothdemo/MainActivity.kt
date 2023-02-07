@@ -57,7 +57,7 @@ class MainActivity : AppCompatActivity() {
                     MESSAGE_READ -> {
                         val readBuf = message.obj as ByteArray
                         val readMsg = String(readBuf, 0, message.arg1)
-                        mainViewModel.addReadMsgFromServer(readMsg)
+                        mainViewModel.addChatMessage(readMsg)
                     }
                 }
                 return true
@@ -578,8 +578,8 @@ class MainActivity : AppCompatActivity() {
 
         private fun manageMyConnectedSocket(bluetoothSocket: BluetoothSocket) {
             mainViewModel.isServer = true
-            myBluetoothService.ConnectedThread(bluetoothSocket).start()
-            Log.d("manageMyConnectedSocket", "start transferring data")
+            mainViewModel.setMyBTSocket(bluetoothSocket)
+            mainViewModel.setMyBTService(myBluetoothService)
         }
 
         // Closes the connect socket and causes the thread to finish.

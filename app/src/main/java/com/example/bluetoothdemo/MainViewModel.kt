@@ -12,8 +12,8 @@ class MainViewModel: ViewModel() {
     private val _discoveredDevices = mutableListOf<FoundDevice>()
     val connectedServer = MutableLiveData<String>()
     val connectedClient = MutableLiveData<String>()
-    val readMsgFromServer = MutableLiveData<List<String>>()
-    private val _readMsgFromServer = mutableListOf<String>()
+    val chatMessages = MutableLiveData<List<String>>()
+    private val _chatMessages = mutableListOf<String>()
     private lateinit var myBluetoothService: MyBluetoothService
     private lateinit var myBluetoothSocket: BluetoothSocket
 
@@ -61,22 +61,27 @@ class MainViewModel: ViewModel() {
         myBluetoothSocket = bluetoothSocket
     }
 
-    fun addReadMsgFromServer(msg: String) {
-        _readMsgFromServer.add(msg)
-        readMsgFromServer.value = _readMsgFromServer.toList()
+    fun addChatMessage(msg: String) {
+        _chatMessages.add(msg)
+        chatMessages.value = _chatMessages.toList()
     }
 
-    fun clearReadMsgFromServer() {
-        _readMsgFromServer.clear()
-        readMsgFromServer.value = _readMsgFromServer.toList()
+    fun clearChatMessages() {
+        _chatMessages.clear()
+        chatMessages.value = _chatMessages.toList()
     }
 
     fun writeMsg(message: String) {
+        addChatMessage(message)
         val msg = message.toByteArray()
         myBluetoothService.ConnectedThread(myBluetoothSocket).write(msg)
     }
 
     fun setIsClientConnecting(isConnecting: Boolean) {
         isClientConnecting.postValue(isConnecting)
+    }
+
+    fun startTransferData() {
+        myBluetoothService.ConnectedThread(myBluetoothSocket).start()
     }
 }

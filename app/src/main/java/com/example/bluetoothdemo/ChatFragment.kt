@@ -50,26 +50,21 @@ class ChatFragment : Fragment() {
             if (mainViewModel.isServer) mainViewModel.connectedClient.value
             else mainViewModel.connectedServer.value
 
-        // only for client
-        chatViewModel.writtenMsgFromClient.observe(viewLifecycleOwner) {
-            chatMsgAdapter.submitList(it)
-        }
+        mainViewModel.startTransferData()
 
-        // only for server
-        mainViewModel.readMsgFromServer.observe(viewLifecycleOwner) {
+        mainViewModel.chatMessages.observe(viewLifecycleOwner) {
             chatMsgAdapter.submitList(it)
         }
 
         sendBtn.setOnClickListener {
             val msg = editedMessage.text.toString()
             mainViewModel.writeMsg(msg)
-            chatViewModel.setLatestMsg(msg)
             editedMessage.text?.clear()
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        mainViewModel.clearReadMsgFromServer()
+        mainViewModel.clearChatMessages()
     }
 }

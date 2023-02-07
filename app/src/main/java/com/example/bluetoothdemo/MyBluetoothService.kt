@@ -46,6 +46,7 @@ class MyBluetoothService(
                     MESSAGE_READ, numBytes, -1,
                     mmBuffer
                 )
+                Log.d("MyBluetoothService read: ", readMsg.toString())
                 readMsg.sendToTarget()
             }
         }
@@ -71,7 +72,7 @@ class MyBluetoothService(
             val writtenMsg = handler.obtainMessage(
                 MESSAGE_WRITE, -1, -1, mmBuffer
             )
-            Log.d("MyBluetoothService", writtenMsg.toString())
+            Log.d("MyBluetoothService write: ", writtenMsg.toString())
 
             writtenMsg.sendToTarget()
         }
