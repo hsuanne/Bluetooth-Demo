@@ -9,6 +9,7 @@ class MainViewModel: ViewModel() {
     val isClientConnecting = MutableLiveData<Boolean>()
     val pairedDevices = MutableLiveData<List<FoundDevice>>()
     val discoveredDevices = MutableLiveData<List<FoundDevice>>()
+    private val _discoveredDevices = mutableListOf<FoundDevice>()
     val connectedServer = MutableLiveData<String>()
     val connectedClient = MutableLiveData<String>()
     val readMsgFromServer = MutableLiveData<List<String>>()
@@ -25,11 +26,16 @@ class MainViewModel: ViewModel() {
     }
 
     fun addToDiscoveredDevices(discoveredDevice: FoundDevice) {
-        discoveredDevices.value = discoveredDevices.value?.plus(discoveredDevice)?: listOf()
+        val discoveredAddress = _discoveredDevices.map { it.deviceMacAddress }
+        if (!discoveredAddress.contains(discoveredDevice.deviceMacAddress)) {
+            _discoveredDevices.add(discoveredDevice)
+            discoveredDevices.value = _discoveredDevices.toList()
+        }
     }
 
     fun clearDiscoveredDevices() {
-        discoveredDevices.value = listOf()
+        _discoveredDevices.clear()
+        discoveredDevices.value = _discoveredDevices
     }
 
     fun removeDeviceAfterPaired(device: FoundDevice): Boolean {
