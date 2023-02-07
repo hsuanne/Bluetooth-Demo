@@ -1,4 +1,4 @@
-package com.example.bluetoothdemo
+package com.example.bluetoothdemo.main
 
 import android.Manifest
 import android.bluetooth.*
@@ -21,6 +21,8 @@ import androidx.core.app.ActivityCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.bluetoothdemo.*
+import com.example.bluetoothdemo.chat.ChatFragment
 import java.io.IOException
 import java.util.*
 import java.util.UUID.fromString
@@ -57,7 +59,7 @@ class MainActivity : AppCompatActivity() {
                     MESSAGE_READ -> {
                         val readBuf = message.obj as ByteArray
                         val readMsg = String(readBuf, 0, message.arg1)
-                        mainViewModel.addChatMessage(readMsg)
+                        mainViewModel.addChatMessage(ChatMessage(readMsg, false))
                     }
                 }
                 return true
