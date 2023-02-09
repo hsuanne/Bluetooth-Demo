@@ -1,4 +1,4 @@
-package com.example.bluetoothdemo
+package com.example.toasterlibrary
 
 import android.content.Context
 import android.widget.Toast
