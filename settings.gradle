@@ -14,4 +14,3 @@ dependencyResolutionManagement {
 }
 rootProject.name = "Bluetooth Demo"
 include ':app'
-include ':ToasterLibrary'
