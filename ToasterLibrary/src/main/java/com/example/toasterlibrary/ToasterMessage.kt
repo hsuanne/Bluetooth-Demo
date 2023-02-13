@@ -8,4 +8,8 @@ object ToasterMessage {
     fun toastMyMessage(c: Context?, message: String?) {
         Toast.makeText(c, message, Toast.LENGTH_SHORT).show()
     }
+
+    fun logMyMessage(message: String?) {
+        println("qwer: $message")
+    }
 }
