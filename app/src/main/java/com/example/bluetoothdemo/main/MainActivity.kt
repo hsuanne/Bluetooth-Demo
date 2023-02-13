@@ -23,6 +23,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.bluetoothdemo.*
 import com.example.bluetoothdemo.chat.ChatFragment
+import com.example.btlibrary.BTHelper
 import java.io.IOException
 import java.util.*
 import java.util.UUID.fromString
@@ -124,7 +125,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         // check if device supports bluetooth
-        checkBluetoothSupported(bluetoothAdapter)
+        BTHelper.checkBluetoothSupported(this, bluetoothAdapter)
 
         // check if bluetooth is enabled
         checkBluetoothEnable(bluetoothAdapter)
@@ -442,14 +443,6 @@ class MainActivity : AppCompatActivity() {
                 .apply {
                     if (this != null) mainViewModel.updatePairedDevices(this)
                 }
-        }
-    }
-
-    private fun checkBluetoothSupported(bluetoothAdapter: BluetoothAdapter?) {
-        if (bluetoothAdapter == null) {
-            // Device doesn't support Bluetooth
-            showToast(getString(R.string.bluetooth_not_supported))
-            finish()
         }
     }
 
