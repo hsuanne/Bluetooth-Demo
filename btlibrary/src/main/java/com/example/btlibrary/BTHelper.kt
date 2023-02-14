@@ -23,7 +23,7 @@ object BTHelper {
      * val bluetoothManager: BluetoothManager = getSystemService(BluetoothManager::class.java)
      * val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
      * reference: https://developer.android.com/guide/topics/connectivity/bluetooth/setup
-     */
+     ***/
 
     /* functions */
 
@@ -65,11 +65,9 @@ object BTHelper {
                 }
             }
 
-        if (ActivityCompat.checkSelfPermission(
-                mContext,
-                Manifest.permission.BLUETOOTH_CONNECT
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
+        if (ActivityCompat.checkSelfPermission(context, getBTConnectPermission()) == PackageManager.PERMISSION_GRANTED) {
+            if (bluetoothAdapter?.isEnabled == false) bluetoothAdapter.enable()
+        } else {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 // for android 12 and higher
                 requestMultiplePermissions.launch(
@@ -83,8 +81,17 @@ object BTHelper {
                 val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
                 requestBluetooth.launch(enableBtIntent)
             }
-        } else {
-            bluetoothAdapter?.enable()
+        }
+    }
+
+    private fun getBTConnectPermission(): String {
+        return when(Build.VERSION.SDK_INT) {
+            // for android 12 and higher
+            Build.VERSION_CODES.S, Build.VERSION_CODES.S_V2 -> Manifest.permission.BLUETOOTH_CONNECT
+            // for android 10 and higher
+            Build.VERSION_CODES.Q, Build.VERSION_CODES.R -> Manifest.permission.ACCESS_FINE_LOCATION
+            // for android 9 and lower
+            else -> Manifest.permission.ACCESS_COARSE_LOCATION
         }
     }
 }
