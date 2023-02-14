@@ -1,6 +1,7 @@
 package com.example.bluetoothdemo.main
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.bluetooth.*
 import android.content.BroadcastReceiver
 import android.content.ContentValues.TAG
@@ -128,7 +129,7 @@ class MainActivity : AppCompatActivity() {
         BTHelper.checkBluetoothSupported(this, bluetoothAdapter)
 
         // check if bluetooth is enabled
-        checkBluetoothEnable(bluetoothAdapter)
+        BTHelper.checkBluetoothEnable(this, bluetoothAdapter)
 
         // check if desired device is already known
         checkPairedDevices(bluetoothAdapter)
@@ -163,6 +164,7 @@ class MainActivity : AppCompatActivity() {
     private fun getBTPermission(): ActivityResultLauncher<Array<String>> {
         val requestBluetoothPermissions =
             registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+                if (permissions.isEmpty()) return@registerForActivityResult
                 if (permissions.entries.any { !it.value }) {
                     showToast(getString(R.string.prompt_bluetooth_permission))
                 } else {
@@ -446,55 +448,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun checkBluetoothEnable(bluetoothAdapter: BluetoothAdapter?) {
-        val requestBluetooth =
-            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-                if (result.resultCode == RESULT_OK) {
-                    //granted
-                    Toast.makeText(this, "bluetooth permission granted", Toast.LENGTH_SHORT).show()
-                    bluetoothAdapter?.enable()
-                } else {
-                    //deny
-                    Toast.makeText(this, "bluetooth permission NOT granted!", Toast.LENGTH_SHORT).show()
-                }
-            }
-
-        val requestMultiplePermissions =
-            registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-                permissions.entries.forEach {
-                    Log.d("Bluetooth MainActivity", "${it.key} = ${it.value}")
-                    if (!it.value) {
-                        Toast.makeText(this, "Please enable permissions for bluetooth.", Toast.LENGTH_SHORT).show()
-                    } else {
-                        bluetoothAdapter?.enable()
-                    }
-                }
-            }
-
-            if (ActivityCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.BLUETOOTH_CONNECT
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    // for android 12 and higher
-                    requestMultiplePermissions.launch(
-                        arrayOf(
-                            Manifest.permission.BLUETOOTH_SCAN,
-                            Manifest.permission.BLUETOOTH_CONNECT
-                        )
-                    )
-                } else {
-                    // for android 11 and lower
-                    val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-                    requestBluetooth.launch(enableBtIntent)
-                }
-            } else {
-                bluetoothAdapter?.enable()
-                currentDeviceName = bluetoothAdapter?.name.toString()
-            }
-    }
-
     private fun getBluetoothSocket(bluetoothAdapter: BluetoothAdapter?): BluetoothServerSocket? {
         val requestMultiplePermissions =
             registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
@@ -543,7 +496,7 @@ class MainActivity : AppCompatActivity() {
         return mmServerSocket
     }
 
-    private inner class AcceptThread(bluetoothAdapter: BluetoothAdapter?) : Thread() {
+    private inner class AcceptThread(val bluetoothAdapter: BluetoothAdapter?) : Thread() {
         val mmServerSocket = getBluetoothSocket(bluetoothAdapter)
 
         override fun run() {
@@ -572,6 +525,33 @@ class MainActivity : AppCompatActivity() {
             mainViewModel.isServer = true
             mainViewModel.setMyBTSocket(bluetoothSocket)
             mainViewModel.setMyBTService(myBluetoothService)
+            setCurrentDeviceName()
+        }
+
+        private fun setCurrentDeviceName() {
+            if (ActivityCompat.checkSelfPermission(
+                    this@MainActivity,
+                    Manifest.permission.BLUETOOTH_CONNECT
+                ) != PackageManager.PERMISSION_GRANTED &&
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+            ) {
+                return
+            } else if (ActivityCompat.checkSelfPermission(
+                    this@MainActivity,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) != PackageManager.PERMISSION_GRANTED &&
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+            ) {
+                return
+            } else if (ActivityCompat.checkSelfPermission(
+                    this@MainActivity,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                ) != PackageManager.PERMISSION_GRANTED &&
+                Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+            ) {
+                return
+            }
+            currentDeviceName = bluetoothAdapter?.name.toString()
         }
 
         // Closes the connect socket and causes the thread to finish.
