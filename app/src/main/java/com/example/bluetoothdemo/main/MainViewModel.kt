@@ -4,8 +4,8 @@ import android.bluetooth.BluetoothSocket
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.bluetoothdemo.ChatMessage
-import com.example.bluetoothdemo.FoundDevice
 import com.example.bluetoothdemo.MyBluetoothService
+import com.example.btlibrary.FoundDevice
 
 class MainViewModel: ViewModel() {
     var isServer: Boolean = false

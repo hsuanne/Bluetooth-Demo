@@ -7,12 +7,11 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
-import android.util.Log
-import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import androidx.lifecycle.MutableLiveData
+import com.example.btlibrary.Constants.MY_UUID
 import com.example.btlibrary.Toaster.showToast
 
 object BTHelper {
@@ -65,7 +64,7 @@ object BTHelper {
                 }
             }
 
-        if (ActivityCompat.checkSelfPermission(context, getBTConnectPermission()) == PackageManager.PERMISSION_GRANTED) {
+        if (ActivityCompat.checkSelfPermission(context, getBTPermission()) == PackageManager.PERMISSION_GRANTED) {
             if (bluetoothAdapter?.isEnabled == false) bluetoothAdapter.enable()
         } else {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -84,7 +83,45 @@ object BTHelper {
         }
     }
 
-    private fun getBTConnectPermission(): String {
+
+    /*** get bonded devices list ***/
+    fun getPairedDevices(context: Context, bluetoothAdapter: BluetoothAdapter?,
+                         bluetoothPermission: ActivityResultLauncher<Array<String>>): List<FoundDevice> {
+
+        if (ActivityCompat.checkSelfPermission(context, getBTPermission())
+            == PackageManager.PERMISSION_GRANTED) {
+            if (bluetoothAdapter?.isEnabled == false) bluetoothAdapter.enable()
+            val foundDevices = bluetoothAdapter?.bondedDevices
+                ?.map {
+                    FoundDevice(
+                        it.name,
+                        it.address,
+                        it.createRfcommSocketToServiceRecord(MY_UUID)
+                    )
+                }
+            return foundDevices?: emptyList()
+        } else {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                // for android 12 and higher
+                bluetoothPermission.launch(
+                    arrayOf(
+                        Manifest.permission.BLUETOOTH_SCAN,
+                        Manifest.permission.BLUETOOTH_CONNECT
+                    )
+                )
+            } else {
+                bluetoothPermission.launch(
+                    arrayOf(
+                        getBTPermission()
+                    )
+                )
+            }
+            return emptyList()
+        }
+    }
+
+    /*** get required permission by build version ***/
+    private fun getBTPermission(): String {
         return when(Build.VERSION.SDK_INT) {
             // for android 12 and higher
             Build.VERSION_CODES.S, Build.VERSION_CODES.S_V2 -> Manifest.permission.BLUETOOTH_CONNECT
@@ -93,5 +130,19 @@ object BTHelper {
             // for android 9 and lower
             else -> Manifest.permission.ACCESS_COARSE_LOCATION
         }
+    }
+
+    /*** activityResultLauncher must be initiated in activity to avoid runtime error ***/
+    fun AppCompatActivity.btActivityResultLauncher(): ActivityResultLauncher<Array<String>> {
+        val requestBluetoothPermissions =
+            this.registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+                if (permissions.isEmpty()) return@registerForActivityResult
+                if (permissions.entries.any { !it.value }) {
+                    showToast(this, getString(R.string.prompt_bluetooth_permission))
+                } else {
+                    showToast(this, getString(R.string.permission_enabled))
+                }
+            }
+        return requestBluetoothPermissions
     }
 }
