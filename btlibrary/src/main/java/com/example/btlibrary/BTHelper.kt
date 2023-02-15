@@ -83,10 +83,9 @@ object BTHelper {
         }
     }
 
-
     /*** get bonded devices list ***/
     fun getPairedDevices(context: Context, bluetoothAdapter: BluetoothAdapter?,
-                         bluetoothPermission: ActivityResultLauncher<Array<String>>): List<FoundDevice> {
+                         activityResultLauncher: ActivityResultLauncher<Array<String>>): List<FoundDevice> {
 
         if (ActivityCompat.checkSelfPermission(context, getBTPermission())
             == PackageManager.PERMISSION_GRANTED) {
@@ -101,22 +100,7 @@ object BTHelper {
                 }
             return foundDevices?: emptyList()
         } else {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                // for android 12 and higher
-                bluetoothPermission.launch(
-                    arrayOf(
-                        Manifest.permission.BLUETOOTH_SCAN,
-                        Manifest.permission.BLUETOOTH_CONNECT
-                    )
-                )
-            } else {
-                // for android 11 and lower
-                bluetoothPermission.launch(
-                    arrayOf(
-                        getBTPermission()
-                    )
-                )
-            }
+            launchPermissions(activityResultLauncher)
             return emptyList()
         }
     }
@@ -130,6 +114,27 @@ object BTHelper {
             Build.VERSION_CODES.Q, Build.VERSION_CODES.R -> Manifest.permission.ACCESS_FINE_LOCATION
             // for android 9 and lower
             else -> Manifest.permission.ACCESS_COARSE_LOCATION
+        }
+    }
+
+    fun launchPermissions(activityResultLauncher: ActivityResultLauncher<Array<String>>) {
+        val basicPermissions = arrayOf(getBTPermission())
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // for android 12 and higher
+
+            // need to request BLUETOOTH_SCAN permission whenever there's a need to search for bluetooth devices
+            val extraPermissions = basicPermissions
+                .toMutableList()
+                .apply {
+                    add(Manifest.permission.BLUETOOTH_SCAN)
+                }
+                .toTypedArray()
+
+            activityResultLauncher.launch(extraPermissions)
+        } else {
+            // for android 11 and lower
+            activityResultLauncher.launch(basicPermissions)
         }
     }
 

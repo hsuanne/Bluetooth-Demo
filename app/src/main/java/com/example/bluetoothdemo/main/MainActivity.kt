@@ -28,8 +28,6 @@ import com.example.btlibrary.BTHelper.btActivityResultLauncher
 import com.example.btlibrary.Constants.MY_UUID
 import com.example.btlibrary.Constants.NAME
 import java.io.IOException
-import java.util.*
-import java.util.UUID.fromString
 
 class MainActivity : AppCompatActivity() {
     private lateinit var pairedDeviceButton: Button
@@ -255,22 +253,7 @@ class MainActivity : AppCompatActivity() {
                             mainViewModel.addToDiscoveredDevices(discoveredDevice)
                         }
                     } else { // launch activityResultLauncher
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                            // for android 12 and higher
-                            btActivityResultLauncher.launch(
-                                arrayOf(
-                                    Manifest.permission.BLUETOOTH_SCAN,
-                                    Manifest.permission.BLUETOOTH_CONNECT
-                                )
-                            )
-                        } else {
-                            // for android 11 and lower
-                            btActivityResultLauncher.launch(
-                                arrayOf(
-                                    BTHelper.getBTPermission()
-                                )
-                            )
-                        }
+                        BTHelper.launchPermissions(btActivityResultLauncher)
                     }
                 }
 
