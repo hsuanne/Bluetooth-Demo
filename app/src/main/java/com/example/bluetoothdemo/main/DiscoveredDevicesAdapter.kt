@@ -6,13 +6,13 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.example.bluetoothdemo.FoundDevice
-import com.example.bluetoothdemo.FoundDeviceDiffCallback
 import com.example.bluetoothdemo.R
+import com.example.btlibrary.FoundDevice
+import com.example.btlibrary.FoundDeviceDiffCallback
 
 class DiscoveredDevicesAdapter(
     val onDeviceClick: (device: FoundDevice) -> Unit
-): ListAdapter<FoundDevice, RecyclerView.ViewHolder>(FoundDeviceDiffCallback()) {
+): ListAdapter<FoundDevice, RecyclerView.ViewHolder>(FoundDeviceDiffCallback) {
 
     class DiscoveredDeviceInfoViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         private val deviceName: TextView = view.findViewById(R.id.deviceName)
