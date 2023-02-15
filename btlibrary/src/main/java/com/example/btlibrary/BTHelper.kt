@@ -110,6 +110,7 @@ object BTHelper {
                     )
                 )
             } else {
+                // for android 11 and lower
                 bluetoothPermission.launch(
                     arrayOf(
                         getBTPermission()
@@ -121,7 +122,7 @@ object BTHelper {
     }
 
     /*** get required permission by build version ***/
-    private fun getBTPermission(): String {
+    fun getBTPermission(): String {
         return when(Build.VERSION.SDK_INT) {
             // for android 12 and higher
             Build.VERSION_CODES.S, Build.VERSION_CODES.S_V2 -> Manifest.permission.BLUETOOTH_CONNECT
