@@ -311,7 +311,7 @@ class MainActivity : AppCompatActivity() {
                         if (it.key != "android.permission.ACCESS_FINE_LOCATION" && bluetoothAdapter?.isEnabled == false) bluetoothAdapter.enable()
                         Toast.makeText(this, "Permissions enabled, please click 'discover devices' again.", Toast.LENGTH_SHORT).show()
                         if (mainViewModel.pairedDevices.value.isNullOrEmpty()) {
-                            updatePairedDevices(BTHelper.getPairedDevices(this, bluetoothAdapter, bluetoothPermission))
+                            mainViewModel.updatePairedDevices(BTHelper.getPairedDevices(this, bluetoothAdapter, bluetoothPermission))
                         }
                     }
                 }
@@ -369,15 +369,10 @@ class MainActivity : AppCompatActivity() {
     private fun checkPairedDevices(
         bluetoothAdapter: BluetoothAdapter?
     ) {
-        updatePairedDevices(BTHelper.getPairedDevices(this, bluetoothAdapter, bluetoothPermission))
+        mainViewModel.updatePairedDevices(BTHelper.getPairedDevices(this, bluetoothAdapter, bluetoothPermission))
         pairedDeviceButton.setOnClickListener {
-            updatePairedDevices(BTHelper.getPairedDevices(this, bluetoothAdapter, bluetoothPermission))
+            mainViewModel.updatePairedDevices(BTHelper.getPairedDevices(this, bluetoothAdapter, bluetoothPermission))
         }
-    }
-
-    private fun updatePairedDevices(bondedDevices: List<FoundDevice>) {
-        if (bondedDevices.isEmpty()) return
-        mainViewModel.updatePairedDevices(bondedDevices)
     }
 
     private fun getBluetoothSocket(bluetoothAdapter: BluetoothAdapter?): BluetoothServerSocket? {
@@ -538,7 +533,7 @@ class MainActivity : AppCompatActivity() {
             mainViewModel.isServer = false
             val isClickFromDiscoverDevices = mainViewModel.removeDeviceAfterPaired(foundDevice)
             if (isClickFromDiscoverDevices) {
-                updatePairedDevices(BTHelper.getPairedDevices(this@MainActivity, bluetoothAdapter, bluetoothPermission))
+                mainViewModel.updatePairedDevices(BTHelper.getPairedDevices(this@MainActivity, bluetoothAdapter, bluetoothPermission))
                 cancel()
             }
             else {
