@@ -25,6 +25,7 @@ import com.example.bluetoothdemo.*
 import com.example.bluetoothdemo.chat.ChatFragment
 import com.example.btlibrary.BTHelper
 import com.example.btlibrary.BTHelper.btActivityResultLauncher
+import com.example.btlibrary.BTHelper.discoverDevicesARL
 import com.example.btlibrary.Constants.MY_UUID
 import com.example.btlibrary.Constants.NAME
 import java.io.IOException
@@ -241,7 +242,7 @@ class MainActivity : AppCompatActivity() {
 
                     if (ActivityCompat.checkSelfPermission(
                             this@MainActivity,
-                            BTHelper.getBTPermission()
+                            BTHelper.getBTConnectPermission()
                         ) == PackageManager.PERMISSION_GRANTED) {
                         device?.let {
                             // if device is paired already, do not add to discoveredDevices
@@ -266,72 +267,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun discoverDevices(bluetoothAdapter: BluetoothAdapter?) {
-        val requestMultiplePermissions =
-            registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-                permissions.entries.forEach {
-                    Log.d("MainActivity discoverDevices","Bluetooth discoverDevices, ${it.key} = ${it.value}")
-                    if (!it.value) {
-                        if (it.key == "android.permission.ACCESS_FINE_LOCATION"){
-                            Toast.makeText(this, "Please enable permissions for location.", Toast.LENGTH_SHORT).show()
-                        } else{
-                            Toast.makeText(this, "Please enable permissions for bluetooth scan.", Toast.LENGTH_SHORT).show()
-                        }
-                    } else {
-                        if (it.key != "android.permission.ACCESS_FINE_LOCATION" && bluetoothAdapter?.isEnabled == false) bluetoothAdapter.enable()
-                        Toast.makeText(this, "Permissions enabled, please click 'discover devices' again.", Toast.LENGTH_SHORT).show()
-                        if (mainViewModel.pairedDevices.value.isNullOrEmpty()) {
-                            mainViewModel.updatePairedDevices(BTHelper.getPairedDevices(this, bluetoothAdapter, btActivityResultLauncher))
-                        }
-                    }
-                }
-            }
+        val requestMultiplePermissions = this.discoverDevicesARL()
 
         discoverDeviceButton.setOnClickListener{
             mainViewModel.clearDiscoveredDevices()
-            if (ActivityCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.BLUETOOTH_CONNECT
-                ) != PackageManager.PERMISSION_GRANTED &&
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-            ) {
-                // for android 12 and higher
-                requestMultiplePermissions.launch(
-                    arrayOf(
-                        Manifest.permission.ACCESS_FINE_LOCATION,
-                        Manifest.permission.BLUETOOTH_SCAN,
-                        Manifest.permission.BLUETOOTH_CONNECT
-                    )
-                )
-            } else if (ActivityCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.ACCESS_FINE_LOCATION
-                ) != PackageManager.PERMISSION_GRANTED &&
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-            ){
-                // for android 10 and higher
-                requestMultiplePermissions.launch(
-                    arrayOf(
-                        Manifest.permission.ACCESS_FINE_LOCATION
-                    )
-                )
-            } else if (ActivityCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                ) != PackageManager.PERMISSION_GRANTED &&
-                Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
-            ) {
-                // for android 9 and lower
-                requestMultiplePermissions.launch(
-                    arrayOf(
-                        Manifest.permission.ACCESS_COARSE_LOCATION
-                    )
-                )
-            }
-            if (bluetoothAdapter?.isDiscovering == true) {
-                bluetoothAdapter.cancelDiscovery()
-            } else {
-                bluetoothAdapter?.startDiscovery()
-            }
+            BTHelper.discoverDevices(this, bluetoothAdapter, requestMultiplePermissions)
         }
     }
 
@@ -462,7 +402,7 @@ class MainActivity : AppCompatActivity() {
             // Cancel discovery because it otherwise slows down the connection.
             if (ActivityCompat.checkSelfPermission(
                     this@MainActivity,
-                    Manifest.permission.BLUETOOTH_SCAN
+                    BTHelper.getBTConnectPermission()
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
                 return
