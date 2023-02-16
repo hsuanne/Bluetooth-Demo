@@ -153,7 +153,7 @@ object BTHelper {
                                       btActivityResultLauncher: ActivityResultLauncher<Array<String>>) {
         val requestCode = 1
         val discoverableIntent: Intent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
-            putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 60)
+            putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 30)
         }
 
         if (ActivityCompat.checkSelfPermission(
