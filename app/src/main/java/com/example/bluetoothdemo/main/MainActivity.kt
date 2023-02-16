@@ -25,9 +25,10 @@ import com.example.bluetoothdemo.*
 import com.example.bluetoothdemo.chat.ChatFragment
 import com.example.btlibrary.BTHelper
 import com.example.btlibrary.BTHelper.btActivityResultLauncher
+import com.example.btlibrary.BTHelper.discoverDevicesARL
+import com.example.btlibrary.Constants.MY_UUID
+import com.example.btlibrary.Constants.NAME
 import java.io.IOException
-import java.util.*
-import java.util.UUID.fromString
 
 class MainActivity : AppCompatActivity() {
     private lateinit var pairedDeviceButton: Button
@@ -42,7 +43,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var mainHandler: Handler
     private lateinit var myBluetoothService: MyBluetoothService
     private lateinit var mConnectThread: ConnectThread
-    private val bluetoothPermission = this.btActivityResultLauncher()
+    private val btActivityResultLauncher = this.btActivityResultLauncher()
     private var currentDeviceName: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -154,6 +155,15 @@ class MainActivity : AppCompatActivity() {
         connectAsServer(bluetoothAdapter)
     }
 
+    private fun checkPairedDevices(
+        bluetoothAdapter: BluetoothAdapter?
+    ) {
+        mainViewModel.updatePairedDevices(BTHelper.getPairedDevices(this, bluetoothAdapter, btActivityResultLauncher))
+        pairedDeviceButton.setOnClickListener {
+            mainViewModel.updatePairedDevices(BTHelper.getPairedDevices(this, bluetoothAdapter, btActivityResultLauncher))
+        }
+    }
+
     private fun navToChatFrag() {
         val fragmentTransaction = supportFragmentManager.beginTransaction()
         fragmentTransaction.replace(R.id.fragmentContainer, ChatFragment())
@@ -183,7 +193,7 @@ class MainActivity : AppCompatActivity() {
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
             ) {
                 // for android 12 and higher
-                bluetoothPermission.launch(
+                btActivityResultLauncher.launch(
                     arrayOf(
                         Manifest.permission.BLUETOOTH_SCAN,
                         Manifest.permission.BLUETOOTH_CONNECT
@@ -196,7 +206,7 @@ class MainActivity : AppCompatActivity() {
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
             ){
                 // for android 10 and higher
-                bluetoothPermission.launch(
+                btActivityResultLauncher.launch(
                     arrayOf(
                         Manifest.permission.ACCESS_FINE_LOCATION
                     )
@@ -208,7 +218,7 @@ class MainActivity : AppCompatActivity() {
                 Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
             ) {
                 // for android 9 and lower
-                bluetoothPermission.launch(
+                btActivityResultLauncher.launch(
                     arrayOf(
                         Manifest.permission.ACCESS_COARSE_LOCATION
                     )
@@ -220,19 +230,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showToast(message: String) {
-        Toast.makeText(
-            this@MainActivity,
-            message,
-            Toast.LENGTH_SHORT
-        ).show()
-    }
-
     // Create a BroadcastReceiver for ACTION_FOUND.
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            val device: BluetoothDevice? =
-                intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+            val device: BluetoothDevice? = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
             when(intent.action) {
                 BluetoothDevice.ACTION_FOUND -> {
                     // Discovery has found a device. Get the BluetoothDevice
@@ -241,42 +242,8 @@ class MainActivity : AppCompatActivity() {
 
                     if (ActivityCompat.checkSelfPermission(
                             this@MainActivity,
-                            Manifest.permission.BLUETOOTH_CONNECT
-                        ) != PackageManager.PERMISSION_GRANTED &&
-                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-                    ) {
-                        // for android 12 and higher
-                        bluetoothPermission.launch(
-                            arrayOf(
-                                Manifest.permission.BLUETOOTH_SCAN,
-                                Manifest.permission.BLUETOOTH_CONNECT
-                            )
-                        )
-                    } else if (ActivityCompat.checkSelfPermission(
-                            this@MainActivity,
-                            Manifest.permission.ACCESS_FINE_LOCATION
-                        ) != PackageManager.PERMISSION_GRANTED &&
-                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-                    ){
-                        // for android 10 and higher
-                        bluetoothPermission.launch(
-                            arrayOf(
-                                Manifest.permission.ACCESS_FINE_LOCATION
-                            )
-                        )
-                    } else if (ActivityCompat.checkSelfPermission(
-                            this@MainActivity,
-                            Manifest.permission.ACCESS_COARSE_LOCATION
-                        ) != PackageManager.PERMISSION_GRANTED &&
-                        Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
-                    ) {
-                        // for android 9 and lower
-                        bluetoothPermission.launch(
-                            arrayOf(
-                                Manifest.permission.ACCESS_COARSE_LOCATION
-                            )
-                        )
-                    } else {
+                            BTHelper.getBTConnectPermission()
+                        ) == PackageManager.PERMISSION_GRANTED) {
                         device?.let {
                             // if device is paired already, do not add to discoveredDevices
                             if (mainViewModel.isDevicePaired(it.address)) return@let
@@ -286,8 +253,11 @@ class MainActivity : AppCompatActivity() {
                             val discoveredDevice = FoundDevice(deviceName, deviceHardwareAddress, deviceSocket)
                             mainViewModel.addToDiscoveredDevices(discoveredDevice)
                         }
+                    } else { // launch activityResultLauncher
+                        BTHelper.launchPermissions(btActivityResultLauncher)
                     }
                 }
+
                 BluetoothDevice.ACTION_ACL_CONNECTED -> {
                     Log.d("MainActivity BroadcastReceiver onReceive ACTION_ACL_CONNECTED: ", "${device?.name}, ${device?.address}")
                     device?.name?.let { mainViewModel.setConnectedClient(it) }
@@ -297,87 +267,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun discoverDevices(bluetoothAdapter: BluetoothAdapter?) {
-        val requestMultiplePermissions =
-            registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-                permissions.entries.forEach {
-                    Log.d("MainActivity discoverDevices","Bluetooth discoverDevices, ${it.key} = ${it.value}")
-                    if (!it.value) {
-                        if (it.key == "android.permission.ACCESS_FINE_LOCATION"){
-                            Toast.makeText(this, "Please enable permissions for location.", Toast.LENGTH_SHORT).show()
-                        } else{
-                            Toast.makeText(this, "Please enable permissions for bluetooth scan.", Toast.LENGTH_SHORT).show()
-                        }
-                    } else {
-                        if (it.key != "android.permission.ACCESS_FINE_LOCATION" && bluetoothAdapter?.isEnabled == false) bluetoothAdapter.enable()
-                        Toast.makeText(this, "Permissions enabled, please click 'discover devices' again.", Toast.LENGTH_SHORT).show()
-                        if (mainViewModel.pairedDevices.value.isNullOrEmpty()) {
-                            updatePairedDevices(BTHelper.getPairedDevices(this, bluetoothAdapter, bluetoothPermission))
-                        }
-                    }
-                }
-            }
+        val requestMultiplePermissions = this.discoverDevicesARL()
 
         discoverDeviceButton.setOnClickListener{
             mainViewModel.clearDiscoveredDevices()
-            if (ActivityCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.BLUETOOTH_CONNECT
-                ) != PackageManager.PERMISSION_GRANTED &&
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-            ) {
-                // for android 12 and higher
-                requestMultiplePermissions.launch(
-                    arrayOf(
-                        Manifest.permission.ACCESS_FINE_LOCATION,
-                        Manifest.permission.BLUETOOTH_SCAN,
-                        Manifest.permission.BLUETOOTH_CONNECT
-                    )
-                )
-            } else if (ActivityCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.ACCESS_FINE_LOCATION
-                ) != PackageManager.PERMISSION_GRANTED &&
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-            ){
-                // for android 10 and higher
-                requestMultiplePermissions.launch(
-                    arrayOf(
-                        Manifest.permission.ACCESS_FINE_LOCATION
-                    )
-                )
-            } else if (ActivityCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                ) != PackageManager.PERMISSION_GRANTED &&
-                Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
-            ) {
-                // for android 9 and lower
-                requestMultiplePermissions.launch(
-                    arrayOf(
-                        Manifest.permission.ACCESS_COARSE_LOCATION
-                    )
-                )
-            }
-            if (bluetoothAdapter?.isDiscovering == true) {
-                bluetoothAdapter.cancelDiscovery()
-            } else {
-                bluetoothAdapter?.startDiscovery()
-            }
+            BTHelper.discoverDevices(this, bluetoothAdapter, requestMultiplePermissions)
         }
-    }
-
-    private fun checkPairedDevices(
-        bluetoothAdapter: BluetoothAdapter?
-    ) {
-        updatePairedDevices(BTHelper.getPairedDevices(this, bluetoothAdapter, bluetoothPermission))
-        pairedDeviceButton.setOnClickListener {
-            updatePairedDevices(BTHelper.getPairedDevices(this, bluetoothAdapter, bluetoothPermission))
-        }
-    }
-
-    private fun updatePairedDevices(bondedDevices: List<FoundDevice>) {
-        if (bondedDevices.isEmpty()) return
-        mainViewModel.updatePairedDevices(bondedDevices)
     }
 
     private fun getBluetoothSocket(bluetoothAdapter: BluetoothAdapter?): BluetoothServerSocket? {
@@ -507,7 +402,7 @@ class MainActivity : AppCompatActivity() {
             // Cancel discovery because it otherwise slows down the connection.
             if (ActivityCompat.checkSelfPermission(
                     this@MainActivity,
-                    Manifest.permission.BLUETOOTH_SCAN
+                    BTHelper.getBTConnectPermission()
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
                 return
@@ -538,7 +433,7 @@ class MainActivity : AppCompatActivity() {
             mainViewModel.isServer = false
             val isClickFromDiscoverDevices = mainViewModel.removeDeviceAfterPaired(foundDevice)
             if (isClickFromDiscoverDevices) {
-                updatePairedDevices(BTHelper.getPairedDevices(this@MainActivity, bluetoothAdapter, bluetoothPermission))
+                mainViewModel.updatePairedDevices(BTHelper.getPairedDevices(this@MainActivity, bluetoothAdapter, btActivityResultLauncher))
                 cancel()
             }
             else {
@@ -558,10 +453,5 @@ class MainActivity : AppCompatActivity() {
                 Log.e(TAG, "Could not close the client socket", e)
             }
         }
-    }
-
-    companion object {
-        const val NAME = "BluetoothDemo"
-        val MY_UUID: UUID = fromString("ca94f29c-ec41-4d46-9392-64188ab9b55e") // has to be the same on server and client
     }
 }
