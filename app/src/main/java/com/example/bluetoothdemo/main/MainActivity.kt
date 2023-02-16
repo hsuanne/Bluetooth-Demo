@@ -164,72 +164,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun navToChatFrag() {
-        val fragmentTransaction = supportFragmentManager.beginTransaction()
-        fragmentTransaction.replace(R.id.fragmentContainer, ChatFragment())
-            .addToBackStack("Chat Fragment")
-            .commit()
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        unregisterReceiver(receiver)
-    }
-
-    private fun connectAsServer(bluetoothAdapter: BluetoothAdapter?) {
-        AcceptThread(bluetoothAdapter).start()
-    }
-
-    private fun enableDiscoverability(bluetoothAdapter: BluetoothAdapter?) {
-        hostButton.setOnClickListener {
-            val requestCode = 1
-            val discoverableIntent: Intent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
-                putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 60)
-            }
-            if (ActivityCompat.checkSelfPermission(
-                    this@MainActivity,
-                    Manifest.permission.BLUETOOTH_CONNECT
-                ) != PackageManager.PERMISSION_GRANTED &&
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-            ) {
-                // for android 12 and higher
-                btActivityResultLauncher.launch(
-                    arrayOf(
-                        Manifest.permission.BLUETOOTH_SCAN,
-                        Manifest.permission.BLUETOOTH_CONNECT
-                    )
-                )
-            } else if (ActivityCompat.checkSelfPermission(
-                    this@MainActivity,
-                    Manifest.permission.ACCESS_FINE_LOCATION
-                ) != PackageManager.PERMISSION_GRANTED &&
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-            ){
-                // for android 10 and higher
-                btActivityResultLauncher.launch(
-                    arrayOf(
-                        Manifest.permission.ACCESS_FINE_LOCATION
-                    )
-                )
-            } else if (ActivityCompat.checkSelfPermission(
-                    this@MainActivity,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                ) != PackageManager.PERMISSION_GRANTED &&
-                Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
-            ) {
-                // for android 9 and lower
-                btActivityResultLauncher.launch(
-                    arrayOf(
-                        Manifest.permission.ACCESS_COARSE_LOCATION
-                    )
-                )
-            } else {
-                if (bluetoothAdapter?.isEnabled == false) bluetoothAdapter.enable()
-                startActivityForResult(discoverableIntent, requestCode)
-            }
-        }
-    }
-
     // Create a BroadcastReceiver for ACTION_FOUND.
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -273,6 +207,28 @@ class MainActivity : AppCompatActivity() {
             mainViewModel.clearDiscoveredDevices()
             BTHelper.discoverDevices(this, bluetoothAdapter, requestMultiplePermissions)
         }
+    }
+
+    private fun enableDiscoverability(bluetoothAdapter: BluetoothAdapter?) {
+        hostButton.setOnClickListener {
+            BTHelper.enableDiscoverability(this, bluetoothAdapter, btActivityResultLauncher)
+        }
+    }
+
+    private fun navToChatFrag() {
+        val fragmentTransaction = supportFragmentManager.beginTransaction()
+        fragmentTransaction.replace(R.id.fragmentContainer, ChatFragment())
+            .addToBackStack("Chat Fragment")
+            .commit()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        unregisterReceiver(receiver)
+    }
+
+    private fun connectAsServer(bluetoothAdapter: BluetoothAdapter?) {
+        AcceptThread(bluetoothAdapter).start()
     }
 
     private fun getBluetoothSocket(bluetoothAdapter: BluetoothAdapter?): BluetoothServerSocket? {
