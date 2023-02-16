@@ -148,6 +148,24 @@ object BTHelper {
         return requestMultiplePermissions
     }
 
+    /*** makes the device discoverable, and enables it to serve as a host to let other devices find it ***/
+    fun enableDiscoverability(context: Context, bluetoothAdapter: BluetoothAdapter?,
+                                      btActivityResultLauncher: ActivityResultLauncher<Array<String>>) {
+        val requestCode = 1
+        val discoverableIntent: Intent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
+            putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 30)
+        }
+
+        if (ActivityCompat.checkSelfPermission(
+                context, getBTConnectPermission()
+            ) == PackageManager.PERMISSION_GRANTED) {
+            if (bluetoothAdapter?.isEnabled == false) bluetoothAdapter.enable()
+            (context as AppCompatActivity).startActivityForResult(discoverableIntent, requestCode)
+        } else {
+            launchPermissions(btActivityResultLauncher)
+        }
+    }
+
     /* General Functions */
 
     /*** get required permission by build version ***/
