@@ -78,6 +78,7 @@ class MainActivity : AppCompatActivity() {
 
         pairedDevicesAdapter = PairedDevicesAdapter {
             if (mainViewModel.isServer) {
+                Log.d("pairedDeviceSocket", "pairing as server: ${it.deviceName}")
                 // check which device is connected to serverSocket
                 if (it.deviceName == mainViewModel.connectedClient.value) {
                     mainViewModel.setConnectedClient(it.deviceName)
@@ -215,7 +216,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun connectAsServer(bluetoothAdapter: BluetoothAdapter?) {
-        AcceptThread(bluetoothAdapter).start()
+//        AcceptThread(bluetoothAdapter).start()
+        BTHelper.AcceptThread(this, bluetoothAdapter) {
+            manageMyConnectedSocket(it, bluetoothAdapter)
+        }
     }
 
     private inner class AcceptThread(val bluetoothAdapter: BluetoothAdapter?) : Thread() {
@@ -283,6 +287,21 @@ class MainActivity : AppCompatActivity() {
 
             return mmServerSocket
         }
+    }
+
+    private fun manageMyConnectedSocket(bluetoothSocket: BluetoothSocket, bluetoothAdapter: BluetoothAdapter?) {
+        mainViewModel.isServer = true
+        mainViewModel.setMyBTSocket(bluetoothSocket)
+        mainViewModel.setMyBTService(myBluetoothService)
+        setCurrentDeviceName(bluetoothAdapter)
+    }
+
+    private fun setCurrentDeviceName(bluetoothAdapter: BluetoothAdapter?) {
+        if (ActivityCompat.checkSelfPermission(
+                this@MainActivity,
+                BTHelper.getBTConnectPermission()
+            ) == PackageManager.PERMISSION_GRANTED)
+            currentDeviceName = bluetoothAdapter?.name.toString()
     }
 
     private inner class ConnectThread(val foundDevice: FoundDevice, val bluetoothAdapter: BluetoothAdapter?) : Thread() {
