@@ -1,6 +1,5 @@
 package com.example.bluetoothdemo.main
 
-import android.Manifest
 import android.bluetooth.*
 import android.content.BroadcastReceiver
 import android.content.ContentValues.TAG
@@ -13,8 +12,6 @@ import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.ProgressBar
-import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.ViewModelProvider
@@ -28,6 +25,7 @@ import com.example.btlibrary.BTHelper.btActivityResultLauncher
 import com.example.btlibrary.BTHelper.discoverDevicesARL
 import com.example.btlibrary.Constants.MY_UUID
 import com.example.btlibrary.Constants.NAME
+import com.example.btlibrary.Toaster
 import java.io.IOException
 
 class MainActivity : AppCompatActivity() {
@@ -86,7 +84,7 @@ class MainActivity : AppCompatActivity() {
                     mainViewModel.setConnectedServer(currentDeviceName)
                     navToChatFrag()
                 } else {
-                    Toast.makeText(this, "This device is not a connected client.", Toast.LENGTH_SHORT).show()
+                    Toaster.showToast(this, getString(R.string.not_connected_client))
                 }
             } else { // is Client
                 val pairedDeviceSocket = it.socket
@@ -201,6 +199,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun discoverDevices(bluetoothAdapter: BluetoothAdapter?) {
+        // must initiate requestMultiplePermissions(ActivityResultLauncher) before setOnClickListener
         val requestMultiplePermissions = this.discoverDevicesARL()
 
         discoverDeviceButton.setOnClickListener{
@@ -215,67 +214,24 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun navToChatFrag() {
-        val fragmentTransaction = supportFragmentManager.beginTransaction()
-        fragmentTransaction.replace(R.id.fragmentContainer, ChatFragment())
-            .addToBackStack("Chat Fragment")
-            .commit()
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        unregisterReceiver(receiver)
-    }
-
     private fun connectAsServer(bluetoothAdapter: BluetoothAdapter?) {
         AcceptThread(bluetoothAdapter).start()
     }
 
     private fun getBluetoothSocket(bluetoothAdapter: BluetoothAdapter?): BluetoothServerSocket? {
-        val requestMultiplePermissions =
-            registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-                permissions.entries.forEach {
-                    Log.d("Bluetooth MainActivity", "${it.key} = ${it.value}")
-                    if (!it.value) {
-                        Toast.makeText(this, "Please enable permissions for bluetooth.", Toast.LENGTH_SHORT).show()
-                    } else {
-                        bluetoothAdapter?.enable()
-                    }
-                }
-            }
-
         if (ActivityCompat.checkSelfPermission(
                 this,
-                Manifest.permission.BLUETOOTH_CONNECT
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                // for android 12 and higher
-                requestMultiplePermissions.launch(
-                    arrayOf(
-                        Manifest.permission.BLUETOOTH_SCAN,
-                        Manifest.permission.BLUETOOTH_CONNECT
-                    )
-                )
-                return null
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                requestMultiplePermissions.launch(
-                    arrayOf(
-                        Manifest.permission.ACCESS_FINE_LOCATION
-                    )
-                )
-            } else {
-                requestMultiplePermissions.launch(
-                    arrayOf(
-                        Manifest.permission.ACCESS_COARSE_LOCATION
-                    )
-                )
-            }
+                BTHelper.getBTConnectPermission()
+            ) != PackageManager.PERMISSION_GRANTED) {
+            Log.d("getBluetoothSocket", "cannot get server socket because bluetooth permission is not enabled")
+            return null
         }
+
         // get a bluetoothSocket
         val mmServerSocket: BluetoothServerSocket? by lazy(LazyThreadSafetyMode.NONE) {
             bluetoothAdapter?.listenUsingInsecureRfcommWithServiceRecord(NAME, MY_UUID)
         }
+
         return mmServerSocket
     }
 
@@ -314,27 +270,9 @@ class MainActivity : AppCompatActivity() {
         private fun setCurrentDeviceName() {
             if (ActivityCompat.checkSelfPermission(
                     this@MainActivity,
-                    Manifest.permission.BLUETOOTH_CONNECT
-                ) != PackageManager.PERMISSION_GRANTED &&
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-            ) {
-                return
-            } else if (ActivityCompat.checkSelfPermission(
-                    this@MainActivity,
-                    Manifest.permission.ACCESS_FINE_LOCATION
-                ) != PackageManager.PERMISSION_GRANTED &&
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-            ) {
-                return
-            } else if (ActivityCompat.checkSelfPermission(
-                    this@MainActivity,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                ) != PackageManager.PERMISSION_GRANTED &&
-                Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
-            ) {
-                return
-            }
-            currentDeviceName = bluetoothAdapter?.name.toString()
+                    BTHelper.getBTConnectPermission()
+                ) == PackageManager.PERMISSION_GRANTED)
+                currentDeviceName = bluetoothAdapter?.name.toString()
         }
 
         // Closes the connect socket and causes the thread to finish.
@@ -376,7 +314,7 @@ class MainActivity : AppCompatActivity() {
                 } catch (e: IOException) {
                     mainViewModel.setIsClientConnecting(false)
                     e.message?.let { Log.d("ConnectThread", it) }
-                    runOnUiThread { Toast.makeText(this@MainActivity, getString(R.string.pairing_failed), Toast.LENGTH_SHORT).show() }
+                    runOnUiThread { Toaster.showToast(this@MainActivity, getString(R.string.pairing_failed)) }
                 }
 
                 // The connection attempt succeeded. Perform work associated with
@@ -409,5 +347,17 @@ class MainActivity : AppCompatActivity() {
                 Log.e(TAG, "Could not close the client socket", e)
             }
         }
+    }
+
+    private fun navToChatFrag() {
+        val fragmentTransaction = supportFragmentManager.beginTransaction()
+        fragmentTransaction.replace(R.id.fragmentContainer, ChatFragment())
+            .addToBackStack("Chat Fragment")
+            .commit()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        unregisterReceiver(receiver)
     }
 }
