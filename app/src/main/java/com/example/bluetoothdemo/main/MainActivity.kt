@@ -17,15 +17,15 @@ import androidx.core.app.ActivityCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.example.btlibrary.FoundDevice
 import com.example.bluetoothdemo.*
+import com.example.bluetoothdemo.R
 import com.example.bluetoothdemo.chat.ChatFragment
-import com.example.btlibrary.BTHelper
+import com.example.btlibrary.*
 import com.example.btlibrary.BTHelper.btActivityResultLauncher
 import com.example.btlibrary.BTHelper.discoverDevicesARL
 import com.example.btlibrary.Constants.MY_UUID
 import com.example.btlibrary.Constants.NAME
-import com.example.btlibrary.Toaster
+import com.example.btlibrary.FoundDevice
 import java.io.IOException
 
 class MainActivity : AppCompatActivity() {
@@ -218,23 +218,6 @@ class MainActivity : AppCompatActivity() {
         AcceptThread(bluetoothAdapter).start()
     }
 
-    private fun getBluetoothSocket(bluetoothAdapter: BluetoothAdapter?): BluetoothServerSocket? {
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                BTHelper.getBTConnectPermission()
-            ) != PackageManager.PERMISSION_GRANTED) {
-            Log.d("getBluetoothSocket", "cannot get server socket because bluetooth permission is not enabled")
-            return null
-        }
-
-        // get a bluetoothSocket
-        val mmServerSocket: BluetoothServerSocket? by lazy(LazyThreadSafetyMode.NONE) {
-            bluetoothAdapter?.listenUsingInsecureRfcommWithServiceRecord(NAME, MY_UUID)
-        }
-
-        return mmServerSocket
-    }
-
     private inner class AcceptThread(val bluetoothAdapter: BluetoothAdapter?) : Thread() {
         val mmServerSocket = getBluetoothSocket(bluetoothAdapter)
 
@@ -282,6 +265,23 @@ class MainActivity : AppCompatActivity() {
             } catch (e: IOException) {
                 Log.e(TAG, "Could not close the connect socket", e)
             }
+        }
+
+        private fun getBluetoothSocket(bluetoothAdapter: BluetoothAdapter?): BluetoothServerSocket? {
+            if (ActivityCompat.checkSelfPermission(
+                    this@MainActivity,
+                    BTHelper.getBTConnectPermission()
+                ) != PackageManager.PERMISSION_GRANTED) {
+                Log.d("getBluetoothSocket", "cannot get server socket because bluetooth permission is not enabled")
+                return null
+            }
+
+            // get a bluetoothSocket
+            val mmServerSocket: BluetoothServerSocket? by lazy(LazyThreadSafetyMode.NONE) {
+                bluetoothAdapter?.listenUsingInsecureRfcommWithServiceRecord(NAME, MY_UUID)
+            }
+
+            return mmServerSocket
         }
     }
 

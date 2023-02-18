@@ -1,4 +1,4 @@
-package com.example.bluetoothdemo
+package com.example.btlibrary
 
 import android.bluetooth.BluetoothSocket
 import android.os.Bundle
@@ -8,7 +8,7 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 
-private const val TAG = "MY_APP_DEBUG_TAG"
+private const val TAG = "MyBluetoothService"
 
 // Defines several constants used when transmitting messages between the
 // service and the UI.
@@ -46,7 +46,7 @@ class MyBluetoothService(
                     MESSAGE_READ, numBytes, -1,
                     mmBuffer
                 )
-                Log.d("MyBluetoothService read: ", readMsg.toString())
+                Log.d("$TAG read", readMsg.toString())
                 readMsg.sendToTarget()
             }
         }
@@ -72,7 +72,7 @@ class MyBluetoothService(
             val writtenMsg = handler.obtainMessage(
                 MESSAGE_WRITE, -1, -1, mmBuffer
             )
-            Log.d("MyBluetoothService write: ", writtenMsg.toString())
+            Log.d("$TAG write", writtenMsg.toString())
 
             writtenMsg.sendToTarget()
         }
