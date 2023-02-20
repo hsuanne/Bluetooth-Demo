@@ -3,6 +3,9 @@ package com.example.btlibrary
 import android.Manifest
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothServerSocket
+import android.bluetooth.BluetoothSocket
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -14,6 +17,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import com.example.btlibrary.Constants.MY_UUID
 import com.example.btlibrary.Toaster.showToast
+import java.io.IOException
 
 object BTHelper {
     /***
@@ -106,7 +110,11 @@ object BTHelper {
         }
     }
 
-    /*** discover nearby bluetooth devices ***/
+    /*** discover nearby bluetooth devices
+     * in activity,
+     * 1. initiate discoverDevicesARL()
+     * 2. create a filter and a receiver, then register the receiver
+     * ***/
     fun discoverDevices(context: Context, bluetoothAdapter: BluetoothAdapter?,
                                 activityResultLauncher: ActivityResultLauncher<Array<String>>) {
         if (ActivityCompat.checkSelfPermission(
@@ -230,4 +238,114 @@ object BTHelper {
             }
         return requestBluetoothPermissions
     }
+
+    /* Classes for Bluetooth Connection */
+    /*** Required if you would like to the device to act as a server(host).
+     * Use start() to listen for connection requests,
+     * once a client socket is found, call manageMyConnectedSocket(),
+     * you might want to then close server socket by close().
+     * note: you may need to customize this class if situation warrants
+     ***/
+    class AcceptThread(val context: Context, bluetoothAdapter: BluetoothAdapter?, val manageMyConnectedSocket: (bluetoothSocket: BluetoothSocket) -> Unit) : Thread() {
+        private val mmServerSocket = getBluetoothSocket(bluetoothAdapter)
+
+        override fun run() {
+            // Keep listening until exception occurs or a socket is returned.
+            var shouldLoop = true
+            while (shouldLoop) {
+                val socket: BluetoothSocket? = try {
+                    // start listening for connection requests
+                    // accept() is a blocking call, so do not execute it on UI thread!
+                    mmServerSocket?.accept()
+                } catch (e: IOException) {
+                    Log.e(ContentValues.TAG, "Socket's accept() method failed", e)
+                    shouldLoop = false
+                    null
+                }
+                socket?.also {
+                    manageMyConnectedSocket(it)
+                    // call close() immediately after finding a socket if needed
+                     mmServerSocket?.close()
+                     shouldLoop = false
+                }
+            }
+        }
+
+        // Closes the connect socket and causes the thread to finish.
+        fun cancel() {
+            try {
+                mmServerSocket?.close()
+            } catch (e: IOException) {
+                Log.e(ContentValues.TAG, "Could not close the connect socket", e)
+            }
+        }
+
+        private fun getBluetoothSocket(bluetoothAdapter: BluetoothAdapter?): BluetoothServerSocket? {
+            if (ActivityCompat.checkSelfPermission(
+                    context,
+                    getBTConnectPermission()
+                ) != PackageManager.PERMISSION_GRANTED) {
+                Log.d("getBluetoothSocket", "cannot get server socket because bluetooth permission is not enabled")
+                return null
+            }
+
+            // get a bluetoothSocket
+            val mmServerSocket: BluetoothServerSocket? by lazy(LazyThreadSafetyMode.NONE) {
+                bluetoothAdapter?.listenUsingInsecureRfcommWithServiceRecord(Constants.NAME, MY_UUID)
+            }
+
+            return mmServerSocket
+        }
+    }
+
+    /*** Required if you would like to the device to act as a client.
+     * Use start() to start connect to a server socket,
+     * once socket is connected, call manageMyConnectedSocket().
+     * note: you may need to customize this class if situation warrants
+     ***/
+    class ConnectThread(val context: Context, val foundDevice: FoundDevice, val bluetoothAdapter: BluetoothAdapter?) : Thread() {
+        private val mmSocket: BluetoothSocket? by lazy(LazyThreadSafetyMode.NONE) {
+            foundDevice.socket
+        }
+
+        override fun run() {
+            // Cancel discovery because it otherwise slows down the connection.
+            if (ActivityCompat.checkSelfPermission(
+                    context,
+                    getBTConnectPermission()
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                return
+            }
+            bluetoothAdapter?.cancelDiscovery()
+
+            mmSocket?.let { socket ->
+                // Connect to the remote device through the socket. This call blocks
+                // until it succeeds or throws an exception.
+                try {
+                    socket.connect()
+                } catch (e: IOException) {
+                    e.message?.let { Log.d("ConnectThread", it) }
+                }
+
+                // The connection attempt succeeded. Perform work associated with
+                // the connection in a separate thread.
+                if (socket.isConnected) manageMyConnectedSocket(socket)
+            }
+        }
+
+        private fun manageMyConnectedSocket(bluetoothSocket: BluetoothSocket) {
+            // do something when connected to server socket
+        }
+
+        // Closes the client socket and causes the thread to finish.
+        fun cancel() {
+            try {
+                mmSocket?.close()
+            } catch (e: IOException) {
+                Log.e(ContentValues.TAG, "Could not close the client socket", e)
+            }
+        }
+    }
+
 }
