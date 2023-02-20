@@ -216,10 +216,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun connectAsServer(bluetoothAdapter: BluetoothAdapter?) {
-//        AcceptThread(bluetoothAdapter).start()
-        BTHelper.AcceptThread(this, bluetoothAdapter) {
-            manageMyConnectedSocket(it, bluetoothAdapter)
-        }
+        AcceptThread(bluetoothAdapter).start()
     }
 
     private inner class AcceptThread(val bluetoothAdapter: BluetoothAdapter?) : Thread() {
