@@ -286,21 +286,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun manageMyConnectedSocket(bluetoothSocket: BluetoothSocket, bluetoothAdapter: BluetoothAdapter?) {
-        mainViewModel.isServer = true
-        mainViewModel.setMyBTSocket(bluetoothSocket)
-        mainViewModel.setMyBTService(myBluetoothService)
-        setCurrentDeviceName(bluetoothAdapter)
-    }
-
-    private fun setCurrentDeviceName(bluetoothAdapter: BluetoothAdapter?) {
-        if (ActivityCompat.checkSelfPermission(
-                this@MainActivity,
-                BTHelper.getBTConnectPermission()
-            ) == PackageManager.PERMISSION_GRANTED)
-            currentDeviceName = bluetoothAdapter?.name.toString()
-    }
-
     private inner class ConnectThread(val foundDevice: FoundDevice, val bluetoothAdapter: BluetoothAdapter?) : Thread() {
         private val mmSocket: BluetoothSocket? by lazy(LazyThreadSafetyMode.NONE) {
             foundDevice.socket

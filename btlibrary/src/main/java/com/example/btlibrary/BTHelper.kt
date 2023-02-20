@@ -110,7 +110,11 @@ object BTHelper {
         }
     }
 
-    /*** discover nearby bluetooth devices ***/
+    /*** discover nearby bluetooth devices
+     * in activity,
+     * 1. initiate discoverDevicesARL()
+     * 2. create a filter and a receiver, then register the receiver
+     * ***/
     fun discoverDevices(context: Context, bluetoothAdapter: BluetoothAdapter?,
                                 activityResultLauncher: ActivityResultLauncher<Array<String>>) {
         if (ActivityCompat.checkSelfPermission(
