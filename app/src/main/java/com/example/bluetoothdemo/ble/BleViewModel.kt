@@ -2,9 +2,9 @@ package com.example.bluetoothdemo.ble
 
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.example.btlibrary.BleDevice
 
 class BleViewModel: ViewModel() {
-    val isScanning = MutableLiveData<Boolean>()
     val bleDevices = MutableLiveData<List<BleDevice>>()
     private val _bleDevices = mutableListOf<BleDevice>()
 
@@ -18,9 +18,5 @@ class BleViewModel: ViewModel() {
     fun clearBleDevices() {
         _bleDevices.clear()
         bleDevices.value = _bleDevices.toList()
-    }
-
-    fun setScanning(isScanning: Boolean) {
-        this.isScanning.value = isScanning
     }
 }

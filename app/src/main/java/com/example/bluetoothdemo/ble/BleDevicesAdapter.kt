@@ -7,6 +7,8 @@ import android.widget.TextView
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.bluetoothdemo.R
+import com.example.btlibrary.BleDevice
+import com.example.btlibrary.BleDeviceDiffCallback
 
 class BleDevicesAdapter(
     val onDeviceClick: (device: BleDevice) -> Unit
