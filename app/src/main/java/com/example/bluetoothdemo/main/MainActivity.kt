@@ -149,9 +149,6 @@ class MainActivity : AppCompatActivity() {
         // this is only necessary when you want your app to host a server socket that accepts incoming connections
         // however, it's better to let app be able to host, so that we can ensure that app can accept incoming connections
         enableDiscoverability(bluetoothAdapter)
-
-        // Connect as a server
-        connectAsServer(bluetoothAdapter)
     }
 
     private fun checkPairedDevices(
@@ -212,6 +209,7 @@ class MainActivity : AppCompatActivity() {
     private fun enableDiscoverability(bluetoothAdapter: BluetoothAdapter?) {
         hostButton.setOnClickListener {
             BTHelper.enableDiscoverability(this, bluetoothAdapter, btActivityResultLauncher)
+            connectAsServer(bluetoothAdapter)
         }
     }
 
