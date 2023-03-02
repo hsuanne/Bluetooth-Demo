@@ -5,11 +5,13 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
-import android.content.Context
+import android.content.*
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Handler
+import android.os.IBinder
 import android.os.Looper
+import android.util.Log
 import androidx.activity.result.ActivityResultLauncher
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.MutableLiveData
@@ -17,7 +19,8 @@ import androidx.lifecycle.MutableLiveData
 object BleHelper {
     const val SCAN_PERIOD: Long = 10000 // Stops scanning after 10 seconds.
     private val handler = Handler(Looper.getMainLooper())
-    val isScanning = MutableLiveData<Boolean>(false)
+    val isScanning = MutableLiveData(false)
+    private var bluetoothService : BluetoothLeService? = null
 
     /* Main Functions */
 
@@ -71,6 +74,59 @@ object BleHelper {
             BTHelper.launchPermissions(activityResultLauncher, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION))
         }
     }
+
+    /*** connect to a GATT server on a BLE device
+     * 1. initiate serviceConnection in Activity
+     * 2. call bindBleService where you want to start the connection
+     * 3. initiate gattUpdateReceiver: BroadcastReceiver in Activity to listen for updates
+     * 4. in onResume, call registerReceiver; in onPause, call unregisterReceiver
+     * note: you may need to customize this function if situation warrants
+     * ***/
+
+    fun getServiceConnection(manageBleService: (bleService: BluetoothLeService) -> Unit): ServiceConnection {
+        return object : ServiceConnection {
+            override fun onServiceConnected(
+                componentName: ComponentName,
+                service: IBinder
+            ) {
+                bluetoothService = (service as BluetoothLeService.LocalBinder).getService()
+                bluetoothService?.let { bleService ->
+                    // call functions on service to check connection and connect to devices
+                    Log.d("BleHelper", "onServiceConnected")
+                    manageBleService(bleService)
+                }
+            }
+
+            override fun onServiceDisconnected(componentName: ComponentName) {
+                Log.d("BleHelper", "onServiceDisconnected")
+                bluetoothService = null
+            }
+        }
+    }
+
+    fun bindBleService(context: Context, serviceConnection: ServiceConnection) {
+        val gattServiceIntent = Intent(context, BluetoothLeService::class.java)
+        context.bindService(gattServiceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
+    }
+
+    fun connectBleService(address: String) {
+        if (bluetoothService != null) {
+            val result = bluetoothService!!.connect(address)
+            Log.d("BleHelper", "Connect request result=$result")
+        }
+    }
+
+    fun Context.registerUpdateReceiver(gattUpdateReceiver: BroadcastReceiver) {
+        this.registerReceiver(gattUpdateReceiver, getGattUpdateIntentFilter())
+    }
+
+    private fun getGattUpdateIntentFilter(): IntentFilter {
+        return IntentFilter().apply {
+            addAction(BluetoothLeService.ACTION_GATT_CONNECTED)
+            addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED)
+        }
+    }
+
 
     /* General Functions */
 
