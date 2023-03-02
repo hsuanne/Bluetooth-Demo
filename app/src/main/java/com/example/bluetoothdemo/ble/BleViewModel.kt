@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 class BleViewModel: ViewModel() {
     val bleDevices = MutableLiveData<List<BluetoothDevice>>()
     private val _bleDevices = mutableListOf<BluetoothDevice>()
+    val serverBleDevice = MutableLiveData<BluetoothDevice?>()
 
     fun addDevice(bleDevice: BluetoothDevice) {
         val deviceAddress = _bleDevices.map { it.address }
@@ -18,5 +19,9 @@ class BleViewModel: ViewModel() {
     fun clearBleDevices() {
         _bleDevices.clear()
         bleDevices.value = _bleDevices.toList()
+    }
+
+    fun setServerBleDevice(bleDevice: BluetoothDevice?) {
+        serverBleDevice.value = bleDevice
     }
 }
