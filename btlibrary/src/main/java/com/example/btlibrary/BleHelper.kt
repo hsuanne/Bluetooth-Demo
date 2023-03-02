@@ -1,6 +1,7 @@
 package com.example.btlibrary
 
 import android.Manifest
+import android.bluetooth.BluetoothDevice
 import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
@@ -28,7 +29,7 @@ object BleHelper {
      * ***/
 
     fun getBleScanCallback(context: Context, activityResultLauncher: ActivityResultLauncher<Array<String>>,
-                                   manageBleDevice: (bluetoothDevice: BleDevice) -> Unit): ScanCallback {
+                                   manageBleDevice: (bluetoothDevice: BluetoothDevice) -> Unit): ScanCallback {
         return object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
                 super.onScanResult(callbackType, result)
@@ -38,11 +39,7 @@ object BleHelper {
                     ) == PackageManager.PERMISSION_GRANTED
                 ) {
                     val bluetoothDevice = result.device
-                    val bleDevice = BleDevice(
-                        bluetoothDevice.name ?: "unknown",
-                        bluetoothDevice.address
-                    )
-                    manageBleDevice(bleDevice) // can use bluetoothDevice for further action, e.g. add data to a list to show on UI
+                    manageBleDevice(bluetoothDevice) // can use bluetoothDevice for further action, e.g. add data to a list to show on UI
                 } else {
                     BTHelper.launchPermissions(activityResultLauncher)
                 }

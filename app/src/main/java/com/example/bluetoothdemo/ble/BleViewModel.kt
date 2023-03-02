@@ -1,16 +1,17 @@
 package com.example.bluetoothdemo.ble
 
+import android.bluetooth.BluetoothDevice
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import com.example.btlibrary.BleDevice
 
 class BleViewModel: ViewModel() {
-    val bleDevices = MutableLiveData<List<BleDevice>>()
-    private val _bleDevices = mutableListOf<BleDevice>()
+    val bleDevices = MutableLiveData<List<BluetoothDevice>>()
+    private val _bleDevices = mutableListOf<BluetoothDevice>()
+    val serverBleDevice = MutableLiveData<BluetoothDevice?>()
 
-    fun addDevice(bleDevice: BleDevice) {
-        val deviceAddress = _bleDevices.map { it.deviceMacAddress }
-        if (deviceAddress.contains(bleDevice.deviceMacAddress)) return
+    fun addDevice(bleDevice: BluetoothDevice) {
+        val deviceAddress = _bleDevices.map { it.address }
+        if (deviceAddress.contains(bleDevice.address)) return
         _bleDevices.add(bleDevice)
         bleDevices.value = _bleDevices.toList()
     }
@@ -18,5 +19,9 @@ class BleViewModel: ViewModel() {
     fun clearBleDevices() {
         _bleDevices.clear()
         bleDevices.value = _bleDevices.toList()
+    }
+
+    fun setServerBleDevice(bleDevice: BluetoothDevice?) {
+        serverBleDevice.value = bleDevice
     }
 }
