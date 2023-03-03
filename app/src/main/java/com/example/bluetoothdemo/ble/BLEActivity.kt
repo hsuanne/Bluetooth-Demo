@@ -24,13 +24,12 @@ class BLEActivity: AppCompatActivity() {
     private lateinit var bleViewModel: BleViewModel
     private val btActivityResultLauncher = this.btActivityResultLauncher()
     private lateinit var bleDevicesAdapter: BleDevicesAdapter
-//    private var bluetoothService : BluetoothLeService? = null
 
     // Code to manage Service lifecycle.
     private val serviceConnection: ServiceConnection = BleHelper.getServiceConnection { bleService ->
         // call functions on service to check connection and connect to devices
         if (!bleService.initialize()) {
-            Log.e("serviceConnection", "Unable to initialize Bluetooth")
+            Log.e(TAG, "Unable to initialize Bluetooth")
             finish()
         }
         bleViewModel.serverBleDevice.value?.address?.let { bleService.connect(it) }
@@ -40,10 +39,10 @@ class BLEActivity: AppCompatActivity() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
                 BluetoothLeService.ACTION_GATT_CONNECTED -> {
-                    Log.d("gattUpdateReceiver", "ACTION_GATT_CONNECTED")
+                    Log.d(TAG, "ACTION_GATT_CONNECTED")
                 }
                 BluetoothLeService.ACTION_GATT_DISCONNECTED -> {
-                    Log.d("gattUpdateReceiver", "ACTION_GATT_DISCONNECTED")
+                    Log.d(TAG, "ACTION_GATT_DISCONNECTED")
 //                    unbindService(serviceConnection)
 //                    bleViewModel.setServerBleDevice(null)
                 }
@@ -111,14 +110,18 @@ class BLEActivity: AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        Log.d("BleActivity", "onResume")
+        Log.d(TAG, "onResume")
         registerUpdateReceiver(gattUpdateReceiver)
         bleViewModel.serverBleDevice.value?.address?.let { BleHelper.connectBleService(it) }
     }
 
     override fun onPause() {
         super.onPause()
-        Log.d("BleActivity", "onPause")
+        Log.d(TAG, "onPause")
         unregisterReceiver(gattUpdateReceiver)
+    }
+
+    companion object {
+        private val TAG = BLEActivity::class.java.name
     }
 }

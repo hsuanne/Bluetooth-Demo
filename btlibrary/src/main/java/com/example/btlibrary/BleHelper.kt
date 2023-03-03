@@ -17,7 +17,8 @@ import androidx.core.app.ActivityCompat
 import androidx.lifecycle.MutableLiveData
 
 object BleHelper {
-    const val SCAN_PERIOD: Long = 10000 // Stops scanning after 10 seconds.
+    private val TAG = BleHelper::class.java.name
+    private const val SCAN_PERIOD: Long = 10000 // Stops scanning after 10 seconds.
     private val handler = Handler(Looper.getMainLooper())
     val isScanning = MutableLiveData(false)
     private var bluetoothService : BluetoothLeService? = null
@@ -92,13 +93,13 @@ object BleHelper {
                 bluetoothService = (service as BluetoothLeService.LocalBinder).getService()
                 bluetoothService?.let { bleService ->
                     // call functions on service to check connection and connect to devices
-                    Log.d("BleHelper", "onServiceConnected")
+                    Log.d(TAG, "onServiceConnected")
                     manageBleService(bleService)
                 }
             }
 
             override fun onServiceDisconnected(componentName: ComponentName) {
-                Log.d("BleHelper", "onServiceDisconnected")
+                Log.d(TAG, "onServiceDisconnected")
                 bluetoothService = null
             }
         }
@@ -112,7 +113,7 @@ object BleHelper {
     fun connectBleService(address: String) {
         if (bluetoothService != null) {
             val result = bluetoothService!!.connect(address)
-            Log.d("BleHelper", "Connect request result=$result")
+            Log.d(TAG, "Connect request result=$result")
         }
     }
 
