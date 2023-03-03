@@ -19,6 +19,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.bluetoothdemo.*
 import com.example.bluetoothdemo.R
+import com.example.bluetoothdemo.ble.BLEActivity
 import com.example.bluetoothdemo.chat.ChatFragment
 import com.example.btlibrary.*
 import com.example.btlibrary.BTHelper.btActivityResultLauncher
@@ -78,7 +79,7 @@ class MainActivity : AppCompatActivity() {
 
         pairedDevicesAdapter = PairedDevicesAdapter {
             if (mainViewModel.isServer) {
-                Log.d("pairedDeviceSocket", "pairing as server: ${it.deviceName}")
+                Log.d(TAG, "pairing as server: ${it.deviceName}")
                 // check which device is connected to serverSocket
                 if (it.deviceName == mainViewModel.connectedClient.value) {
                     mainViewModel.setConnectedClient(it.deviceName)
@@ -89,7 +90,7 @@ class MainActivity : AppCompatActivity() {
                 }
             } else { // is Client
                 val pairedDeviceSocket = it.socket
-                Log.d("pairedDeviceSocket", "isConnected: ${pairedDeviceSocket.isConnected}")
+                Log.d(TAG, "pairing as client: ${pairedDeviceSocket.isConnected}")
 
                 if (!pairedDeviceSocket.isConnected) {
                     ConnectThread(it, bluetoothAdapter).apply { start() }
@@ -358,5 +359,9 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         unregisterReceiver(receiver)
+    }
+
+    companion object {
+        private val TAG = MainActivity::class.java.name
     }
 }

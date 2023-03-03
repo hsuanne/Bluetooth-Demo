@@ -4,7 +4,6 @@ import android.bluetooth.*
 import android.bluetooth.le.BluetoothLeScanner
 import android.content.*
 import android.os.Bundle
-import android.os.IBinder
 import android.util.Log
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
@@ -14,6 +13,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.bluetoothdemo.R
 import com.example.btlibrary.BTHelper.btActivityResultLauncher
 import com.example.btlibrary.BleHelper
+import com.example.btlibrary.BleHelper.registerUpdateReceiver
+import com.example.btlibrary.BluetoothLeService
 
 class BLEActivity: AppCompatActivity() {
     private lateinit var bluetoothManager: BluetoothManager
@@ -23,42 +24,27 @@ class BLEActivity: AppCompatActivity() {
     private lateinit var bleViewModel: BleViewModel
     private val btActivityResultLauncher = this.btActivityResultLauncher()
     private lateinit var bleDevicesAdapter: BleDevicesAdapter
-    private var bluetoothService : BluetoothLeService? = null
 
     // Code to manage Service lifecycle.
-    private val serviceConnection: ServiceConnection = object : ServiceConnection {
-        override fun onServiceConnected(
-            componentName: ComponentName,
-            service: IBinder
-        ) {
-            Log.d("serviceConnection", "onServiceConnected")
-            bluetoothService = (service as BluetoothLeService.LocalBinder).getService()
-            bluetoothService?.let { bluetoothLeService ->
-                // call functions on service to check connection and connect to devices
-                if (!bluetoothLeService.initialize()) {
-                    Log.e("serviceConnection", "Unable to initialize Bluetooth")
-                    finish()
-                }
-                bleViewModel.serverBleDevice.value?.address?.let { bluetoothLeService.connect(it) }
-            }
+    private val serviceConnection: ServiceConnection = BleHelper.getServiceConnection { bleService ->
+        // call functions on service to check connection and connect to devices
+        if (!bleService.initialize()) {
+            Log.e(TAG, "Unable to initialize Bluetooth")
+            finish()
         }
-
-        override fun onServiceDisconnected(componentName: ComponentName) {
-            Log.d("serviceConnection", "onServiceDisconnected")
-            bluetoothService = null
-        }
+        bleViewModel.serverBleDevice.value?.address?.let { bleService.connect(it) }
     }
 
     private val gattUpdateReceiver: BroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
                 BluetoothLeService.ACTION_GATT_CONNECTED -> {
-                    Log.d("gattUpdateReceiver", "ACTION_GATT_CONNECTED")
+                    Log.d(TAG, "ACTION_GATT_CONNECTED")
                 }
                 BluetoothLeService.ACTION_GATT_DISCONNECTED -> {
-                    Log.d("gattUpdateReceiver", "ACTION_GATT_DISCONNECTED")
-                    unbindService(serviceConnection)
-                    bleViewModel.setServerBleDevice(null)
+                    Log.d(TAG, "ACTION_GATT_DISCONNECTED")
+//                    unbindService(serviceConnection)
+//                    bleViewModel.setServerBleDevice(null)
                 }
             }
         }
@@ -77,9 +63,7 @@ class BLEActivity: AppCompatActivity() {
 
         bleDevicesAdapter = BleDevicesAdapter {
             bleViewModel.setServerBleDevice(it)
-            val gattServiceIntent = Intent(this, BluetoothLeService::class.java)
-            val bleService = bindService(gattServiceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
-            Log.d("BleService exists:", "$bleService")
+            BleHelper.bindBleService(this, serviceConnection)
         }
         val bleRecyclerView = findViewById<RecyclerView>(R.id.bleDeviceRecyclerView)
         bleRecyclerView.layoutManager = LinearLayoutManager(this)
@@ -126,23 +110,18 @@ class BLEActivity: AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        registerReceiver(gattUpdateReceiver, makeGattUpdateIntentFilter())
-        if (bluetoothService != null) {
-            val result = bleViewModel.serverBleDevice.value?.let { bluetoothService!!.connect(it.address) }
-            Log.d("BLEActivity", "Connect request result=$result")
-        }
+        Log.d(TAG, "onResume")
+        registerUpdateReceiver(gattUpdateReceiver)
+        bleViewModel.serverBleDevice.value?.address?.let { BleHelper.connectBleService(it) }
     }
 
     override fun onPause() {
         super.onPause()
-        Log.d("onPause", "onPause")
+        Log.d(TAG, "onPause")
         unregisterReceiver(gattUpdateReceiver)
     }
 
-    private fun makeGattUpdateIntentFilter(): IntentFilter? {
-        return IntentFilter().apply {
-            addAction(BluetoothLeService.ACTION_GATT_CONNECTED)
-            addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED)
-        }
+    companion object {
+        private val TAG = BLEActivity::class.java.name
     }
 }

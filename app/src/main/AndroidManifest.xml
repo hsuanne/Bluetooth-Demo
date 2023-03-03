@@ -23,7 +23,7 @@
         android:theme="@style/Theme.BluetoothDemo"
         tools:targetApi="31">
         <service
-            android:name=".ble.BluetoothLeService"
+            android:name="com.example.btlibrary.BluetoothLeService"
             android:enabled="true" />
 
         <activity
