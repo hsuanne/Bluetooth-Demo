@@ -21,7 +21,7 @@ object BleHelper {
     private const val SCAN_PERIOD: Long = 10000 // Stops scanning after 10 seconds.
     private val handler = Handler(Looper.getMainLooper())
     val isScanning = MutableLiveData(false)
-    private var bluetoothService : BluetoothLeService? = null
+    var bluetoothService : BluetoothLeService? = null
 
     /* Main Functions */
 
@@ -125,6 +125,8 @@ object BleHelper {
         return IntentFilter().apply {
             addAction(BluetoothLeService.ACTION_GATT_CONNECTED)
             addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED)
+            addAction(BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED)
+            addAction(BluetoothLeService.ACTION_DATA_AVAILABLE)
         }
     }
 
@@ -140,6 +142,28 @@ object BleHelper {
             Build.VERSION_CODES.Q, Build.VERSION_CODES.R -> Manifest.permission.ACCESS_FINE_LOCATION
             // for android 9 and lower
             else -> Manifest.permission.ACCESS_COARSE_LOCATION
+        }
+    }
+
+    /* Classes */
+    object SampleGattAttributes {
+        private val attributes: HashMap<String, String> = HashMap()
+        const val MY_SERVICE = "0000ffe0-0000-1000-8000-00805f9b34fb"
+        const val CHARACTERISTIC_A = "0000ffe2-0000-1000-8000-00805f9b34fb"
+        const val CHARACTERISTIC_B = "ea49b906-f574-4082-bb68-26a5170cfe91"
+
+
+        init {
+            // Sample Services.
+            attributes[MY_SERVICE] = "My Service"
+            // Sample Characteristics.
+            attributes[CHARACTERISTIC_A] = "My Characteristic A"
+            attributes[CHARACTERISTIC_B] = "My Characteristic B"
+        }
+
+        fun lookup(uuid: String?, defaultName: String?): String? {
+            val name = attributes[uuid]
+            return name ?: defaultName
         }
     }
 }

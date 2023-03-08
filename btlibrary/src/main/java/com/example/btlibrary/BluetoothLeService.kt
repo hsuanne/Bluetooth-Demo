@@ -9,6 +9,8 @@ import android.os.Binder
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.ActivityCompat
+import com.example.btlibrary.BleHelper.SampleGattAttributes.CHARACTERISTIC_A
+import com.example.btlibrary.BleHelper.SampleGattAttributes.MY_SERVICE
 
 class BluetoothLeService : Service() {
     private val binder = LocalBinder()
@@ -21,10 +23,68 @@ class BluetoothLeService : Service() {
                 // successfully connected to the GATT Server
                 connectionState = STATE_CONNECTED
                 broadcastUpdate(ACTION_GATT_CONNECTED)
+                Log.i(TAG, "Connected to GATT server.")
+                // Attempts to discover services after successful connection.
+                if (ActivityCompat.checkSelfPermission(
+                        this@BluetoothLeService,
+                        BTHelper.getBTConnectPermission()
+                    ) != PackageManager.PERMISSION_GRANTED
+                ) {
+                    return
+                }
+                Log.i(TAG, "Attempting to start service discovery:" + bluetoothGatt!!.discoverServices())
+
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 // disconnected from the GATT Server
                 connectionState = STATE_DISCONNECTED
                 broadcastUpdate(ACTION_GATT_DISCONNECTED)
+                gatt?.close()
+                Log.i(TAG, "Disconnected from GATT server.")
+            }
+        }
+
+        override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                broadcastUpdate(ACTION_GATT_SERVICES_DISCOVERED)
+                Log.i(TAG, "discovered services")
+
+                for (service in gatt!!.services){
+                    Log.i(TAG, "services: ${service.uuid}, ${service.characteristics.size}")
+
+                    if (service.uuid.toString() == MY_SERVICE) {
+                        Log.i(TAG, "my service: ${service.uuid}, ${service.characteristics.size}")
+
+                        for (mCharacteristic in service.characteristics) {
+                            Log.i(TAG, "characteristic uuid: ${mCharacteristic.uuid}")
+                            if (ActivityCompat.checkSelfPermission(
+                                    this@BluetoothLeService,
+                                    BTHelper.getBTConnectPermission()
+                                ) != PackageManager.PERMISSION_GRANTED
+                            ) {
+                                return
+                            }
+                            if (mCharacteristic.uuid.toString() == CHARACTERISTIC_A) {
+                                Log.i(TAG, "my characteristic: ${mCharacteristic.uuid}")
+
+                                // call onCharacteristicRead()
+                                BleHelper.bluetoothService?.readCharacteristic(mCharacteristic)
+                            }
+                        }
+                    }
+                }
+            } else {
+                Log.w(TAG, "onServicesDiscovered received: $status")
+            }
+        }
+
+        override fun onCharacteristicRead(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            status: Int
+        ) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                Log.i(TAG, "onCharacteristicRead")
+                broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic)
             }
         }
     }
@@ -57,6 +117,7 @@ class BluetoothLeService : Service() {
                     return@let
                 }
                 bluetoothGatt = device.connectGatt(this, false, bluetoothGattCallback)
+                Log.i(TAG, "connecting GATT")
                 return true
             } catch (exception: IllegalArgumentException) {
                 Log.w(TAG, "Device not found with provided address.")
@@ -70,6 +131,22 @@ class BluetoothLeService : Service() {
         return true
     }
 
+    fun readCharacteristic(characteristic: BluetoothGattCharacteristic) {
+        bluetoothGatt?.let { gatt ->
+            if (ActivityCompat.checkSelfPermission(
+                    this,
+                    BTHelper.getBTConnectPermission()
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                return
+            }
+            gatt.readCharacteristic(characteristic)
+        } ?: run {
+            Log.w(TAG, "BluetoothGatt not initialized")
+            return
+        }
+    }
+
     override fun onBind(intent: Intent): IBinder {
         return binder
     }
@@ -80,8 +157,23 @@ class BluetoothLeService : Service() {
         return super.onUnbind(intent)
     }
 
-    private fun broadcastUpdate(action: String) {
+    private fun broadcastUpdate(action: String, characteristic: BluetoothGattCharacteristic?= null) {
         val intent = Intent(action)
+
+        // parse hex to string
+        if (characteristic != null) {
+            val data: ByteArray? = characteristic.value
+            Log.d(TAG, "transferring data")
+
+            if (data?.isNotEmpty() == true) {
+                val hexString: String = data.joinToString(separator = " ") {
+                    String.format("%02X", it)
+                }
+                val text = String(data, 0, characteristic.value.size)
+                intent.putExtra(MY_DATA,
+                    "my characteristic UUID: ${characteristic.uuid}\nHex: $hexString\nText: $text")
+            }
+        }
         sendBroadcast(intent)
     }
 
@@ -105,8 +197,15 @@ class BluetoothLeService : Service() {
             "com.example.bluetooth.le.ACTION_GATT_CONNECTED"
         const val ACTION_GATT_DISCONNECTED =
             "com.example.bluetooth.le.ACTION_GATT_DISCONNECTED"
+        const val ACTION_GATT_SERVICES_DISCOVERED =
+            "com.example.bluetooth.le.ACTION_GATT_SERVICES_DISCOVERED"
+        const val ACTION_DATA_AVAILABLE =
+            "com.example.bluetooth.le.ACTION_DATA_AVAILABLE"
 
         private const val STATE_DISCONNECTED = 0
+        private const val STATE_CONNECTING = 1
         private const val STATE_CONNECTED = 2
+
+        const val MY_DATA = "my data"
     }
 }

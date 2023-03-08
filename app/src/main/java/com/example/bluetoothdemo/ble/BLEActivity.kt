@@ -5,7 +5,9 @@ import android.bluetooth.le.BluetoothLeScanner
 import android.content.*
 import android.os.Bundle
 import android.util.Log
+import android.widget.ArrayAdapter
 import android.widget.Button
+import android.widget.ListView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -15,6 +17,7 @@ import com.example.btlibrary.BTHelper.btActivityResultLauncher
 import com.example.btlibrary.BleHelper
 import com.example.btlibrary.BleHelper.registerUpdateReceiver
 import com.example.btlibrary.BluetoothLeService
+import com.example.btlibrary.BluetoothLeService.Companion.MY_DATA
 
 class BLEActivity: AppCompatActivity() {
     private lateinit var bluetoothManager: BluetoothManager
@@ -24,6 +27,11 @@ class BLEActivity: AppCompatActivity() {
     private lateinit var bleViewModel: BleViewModel
     private val btActivityResultLauncher = this.btActivityResultLauncher()
     private lateinit var bleDevicesAdapter: BleDevicesAdapter
+    private lateinit var bleDataAdapter: ArrayAdapter<String>
+    private lateinit var bleDataRecyclerView: ListView
+    private val bleData = mutableListOf<String?>().apply {
+        add("my service UUID: ${BleHelper.SampleGattAttributes.MY_SERVICE}")
+    }
 
     // Code to manage Service lifecycle.
     private val serviceConnection: ServiceConnection = BleHelper.getServiceConnection { bleService ->
@@ -43,13 +51,20 @@ class BLEActivity: AppCompatActivity() {
                 }
                 BluetoothLeService.ACTION_GATT_DISCONNECTED -> {
                     Log.d(TAG, "ACTION_GATT_DISCONNECTED")
-//                    unbindService(serviceConnection)
-//                    bleViewModel.setServerBleDevice(null)
+                    unbindService(serviceConnection)
+                    bleViewModel.setServerBleDevice(null)
+                }
+                BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED -> {
+                    Log.d(TAG, "ACTION_GATT_SERVICES_DISCOVERED")
+                }
+
+                BluetoothLeService.ACTION_DATA_AVAILABLE -> {
+                    Log.d(TAG, "ACTION_DATA_AVAILABLE")
+                    displayData(intent.getStringExtra(MY_DATA))
                 }
             }
         }
     }
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -68,6 +83,8 @@ class BLEActivity: AppCompatActivity() {
         val bleRecyclerView = findViewById<RecyclerView>(R.id.bleDeviceRecyclerView)
         bleRecyclerView.layoutManager = LinearLayoutManager(this)
         bleRecyclerView.adapter = bleDevicesAdapter
+
+        bleDataRecyclerView = findViewById(R.id.bleData)
 
         // bluetooth
         bluetoothManager = getSystemService(BluetoothManager::class.java)
@@ -106,6 +123,12 @@ class BLEActivity: AppCompatActivity() {
                 bleBtn.text = "Scan"
             }
         }
+    }
+
+    private fun displayData(data: String?) {
+        bleData.add(data)
+        bleDataAdapter = ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, bleData)
+        bleDataRecyclerView.adapter = bleDataAdapter
     }
 
     override fun onResume() {
