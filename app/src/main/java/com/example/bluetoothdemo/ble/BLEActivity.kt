@@ -15,6 +15,7 @@ import com.example.btlibrary.BTHelper.btActivityResultLauncher
 import com.example.btlibrary.BleHelper
 import com.example.btlibrary.BleHelper.registerUpdateReceiver
 import com.example.btlibrary.BluetoothLeService
+import com.example.btlibrary.BluetoothLeService.Companion.MY_DATA
 
 class BLEActivity: AppCompatActivity() {
     private lateinit var bluetoothManager: BluetoothManager
@@ -43,13 +44,20 @@ class BLEActivity: AppCompatActivity() {
                 }
                 BluetoothLeService.ACTION_GATT_DISCONNECTED -> {
                     Log.d(TAG, "ACTION_GATT_DISCONNECTED")
-//                    unbindService(serviceConnection)
-//                    bleViewModel.setServerBleDevice(null)
+                    unbindService(serviceConnection)
+                    bleViewModel.setServerBleDevice(null)
+                }
+                BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED -> {
+                    Log.d(TAG, "ACTION_GATT_SERVICES_DISCOVERED")
+                }
+
+                BluetoothLeService.ACTION_DATA_AVAILABLE -> {
+                    Log.d(TAG, "ACTION_DATA_AVAILABLE")
+                    displayData(intent.getStringExtra(MY_DATA))
                 }
             }
         }
     }
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -106,6 +114,10 @@ class BLEActivity: AppCompatActivity() {
                 bleBtn.text = "Scan"
             }
         }
+    }
+
+    private fun displayData(data: String?) {
+        println("CHARACTERISTIC: $data")
     }
 
     override fun onResume() {

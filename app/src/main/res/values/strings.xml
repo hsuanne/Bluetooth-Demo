@@ -5,4 +5,6 @@
     <string name="pairing_failed">Pairing Failed</string>
     <string name="permissions_enabled_retry">Permissions enabled, please retry again</string>
     <string name="not_connected_client">This device is not a connected client.</string>
+    <string name="unknown_service">unknown service</string>
+    <string name="unknown_characteristic">unknown characteristic</string>
 </resources>
