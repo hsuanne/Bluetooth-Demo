@@ -151,6 +151,7 @@ object BleHelper {
         const val MY_SERVICE = "0000ffe0-0000-1000-8000-00805f9b34fb"
         const val CHARACTERISTIC_A = "0000ffe2-0000-1000-8000-00805f9b34fb"
         const val CHARACTERISTIC_B = "ea49b906-f574-4082-bb68-26a5170cfe91"
+        const val DESCRIPTOR_NOTIFICATION = "00002902-0000-1000-8000-00805f9b34fb"
 
 
         init {

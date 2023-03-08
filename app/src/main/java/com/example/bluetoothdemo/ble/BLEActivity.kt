@@ -57,7 +57,6 @@ class BLEActivity: AppCompatActivity() {
                 BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED -> {
                     Log.d(TAG, "ACTION_GATT_SERVICES_DISCOVERED")
                 }
-
                 BluetoothLeService.ACTION_DATA_AVAILABLE -> {
                     Log.d(TAG, "ACTION_DATA_AVAILABLE")
                     displayData(intent.getStringExtra(MY_DATA))
