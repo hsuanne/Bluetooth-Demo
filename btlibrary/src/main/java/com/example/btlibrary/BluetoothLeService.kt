@@ -10,7 +10,9 @@ import android.os.IBinder
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import com.example.btlibrary.BleHelper.SampleGattAttributes.CHARACTERISTIC_A
+import com.example.btlibrary.BleHelper.SampleGattAttributes.DESCRIPTOR_NOTIFICATION
 import com.example.btlibrary.BleHelper.SampleGattAttributes.MY_SERVICE
+import java.util.*
 
 class BluetoothLeService : Service() {
     private val binder = LocalBinder()
@@ -87,6 +89,14 @@ class BluetoothLeService : Service() {
                 broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic)
             }
         }
+
+        override fun onCharacteristicChanged(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic
+        ) {
+            Log.i(TAG, "onCharacteristicChanged")
+            broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic)
+        }
     }
 
     inner class LocalBinder : Binder() {
@@ -147,6 +157,36 @@ class BluetoothLeService : Service() {
         }
     }
 
+    private fun setCharacteristicNotification(characteristic: BluetoothGattCharacteristic) {
+        Log.i(TAG, "setCharacteristicNotification")
+        bluetoothGatt?.let { gatt ->
+            if (ActivityCompat.checkSelfPermission(
+                    this,
+                    BTHelper.getBTConnectPermission()
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                return
+            }
+
+            // skip setCharacteristicNotification if it was set already
+            if (characteristic.getDescriptor(UUID.fromString(DESCRIPTOR_NOTIFICATION)).value.contentEquals(
+                    BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                )) return
+
+            gatt.setCharacteristicNotification(characteristic, true)
+
+            // check for specific characteristic uuid
+            if (CHARACTERISTIC_A == characteristic.uuid.toString()) {
+                val descriptor = characteristic.getDescriptor(UUID.fromString(DESCRIPTOR_NOTIFICATION))
+                descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                gatt.writeDescriptor(descriptor)
+                Log.i(TAG, "descriptor written")
+            }
+        } ?: run {
+            Log.w(TAG, "BluetoothGatt not initialized")
+        }
+    }
+
     override fun onBind(intent: Intent): IBinder {
         return binder
     }
@@ -164,6 +204,9 @@ class BluetoothLeService : Service() {
         if (characteristic != null) {
             val data: ByteArray? = characteristic.value
             Log.d(TAG, "transferring data")
+
+            // set notification if want to keep listening to server characteristic change
+            this@BluetoothLeService.setCharacteristicNotification(characteristic)
 
             if (data?.isNotEmpty() == true) {
                 val hexString: String = data.joinToString(separator = " ") {
