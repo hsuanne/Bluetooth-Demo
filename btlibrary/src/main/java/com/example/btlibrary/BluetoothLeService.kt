@@ -170,7 +170,8 @@ class BluetoothLeService : Service() {
                     String.format("%02X", it)
                 }
                 val text = String(data, 0, characteristic.value.size)
-                intent.putExtra(MY_DATA, "$hexString\n$text")
+                intent.putExtra(MY_DATA,
+                    "my characteristic UUID: ${characteristic.uuid}\nHex: $hexString\nText: $text")
             }
         }
         sendBroadcast(intent)

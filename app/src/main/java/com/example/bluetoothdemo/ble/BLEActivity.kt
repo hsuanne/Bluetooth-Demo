@@ -5,7 +5,9 @@ import android.bluetooth.le.BluetoothLeScanner
 import android.content.*
 import android.os.Bundle
 import android.util.Log
+import android.widget.ArrayAdapter
 import android.widget.Button
+import android.widget.ListView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -25,6 +27,11 @@ class BLEActivity: AppCompatActivity() {
     private lateinit var bleViewModel: BleViewModel
     private val btActivityResultLauncher = this.btActivityResultLauncher()
     private lateinit var bleDevicesAdapter: BleDevicesAdapter
+    private lateinit var bleDataAdapter: ArrayAdapter<String>
+    private lateinit var bleDataRecyclerView: ListView
+    private val bleData = mutableListOf<String?>().apply {
+        add("my service UUID: ${BleHelper.SampleGattAttributes.MY_SERVICE}")
+    }
 
     // Code to manage Service lifecycle.
     private val serviceConnection: ServiceConnection = BleHelper.getServiceConnection { bleService ->
@@ -77,6 +84,8 @@ class BLEActivity: AppCompatActivity() {
         bleRecyclerView.layoutManager = LinearLayoutManager(this)
         bleRecyclerView.adapter = bleDevicesAdapter
 
+        bleDataRecyclerView = findViewById(R.id.bleData)
+
         // bluetooth
         bluetoothManager = getSystemService(BluetoothManager::class.java)
         bluetoothAdapter = bluetoothManager.adapter
@@ -117,7 +126,9 @@ class BLEActivity: AppCompatActivity() {
     }
 
     private fun displayData(data: String?) {
-        println("CHARACTERISTIC: $data")
+        bleData.add(data)
+        bleDataAdapter = ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, bleData)
+        bleDataRecyclerView.adapter = bleDataAdapter
     }
 
     override fun onResume() {
