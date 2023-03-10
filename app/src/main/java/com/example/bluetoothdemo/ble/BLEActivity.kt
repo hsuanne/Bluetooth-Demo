@@ -18,6 +18,7 @@ import com.example.btlibrary.BleHelper
 import com.example.btlibrary.BleHelper.registerUpdateReceiver
 import com.example.btlibrary.BluetoothLeService
 import com.example.btlibrary.BluetoothLeService.Companion.MY_DATA
+import com.example.btlibrary.SampleGattAttributes.MY_SERVICE
 
 class BLEActivity: AppCompatActivity() {
     private lateinit var bluetoothManager: BluetoothManager
@@ -30,7 +31,7 @@ class BLEActivity: AppCompatActivity() {
     private lateinit var bleDataAdapter: ArrayAdapter<String>
     private lateinit var bleDataRecyclerView: ListView
     private val bleData = mutableListOf<String?>().apply {
-        add("my service UUID: ${BleHelper.SampleGattAttributes.MY_SERVICE}")
+        add("my service UUID: $MY_SERVICE")
     }
 
     // Code to manage Service lifecycle.

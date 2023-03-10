@@ -9,9 +9,9 @@ import android.os.Binder
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.ActivityCompat
-import com.example.btlibrary.BleHelper.SampleGattAttributes.CHARACTERISTIC_A
-import com.example.btlibrary.BleHelper.SampleGattAttributes.DESCRIPTOR_NOTIFICATION
-import com.example.btlibrary.BleHelper.SampleGattAttributes.MY_SERVICE
+import com.example.btlibrary.SampleGattAttributes.CHARACTERISTIC_A
+import com.example.btlibrary.SampleGattAttributes.DESCRIPTOR_NOTIFICATION
+import com.example.btlibrary.SampleGattAttributes.MY_SERVICE
 import java.util.*
 
 class BluetoothLeService : Service() {
