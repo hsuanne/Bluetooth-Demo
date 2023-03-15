@@ -16,9 +16,9 @@ import com.example.bluetoothdemo.R
 import com.example.btlibrary.BTHelper.btActivityResultLauncher
 import com.example.btlibrary.BleHelper
 import com.example.btlibrary.BleHelper.registerUpdateReceiver
+import com.example.btlibrary.BleUUID.MY_SERVICE
 import com.example.btlibrary.BluetoothLeService
 import com.example.btlibrary.BluetoothLeService.Companion.MY_DATA
-import com.example.btlibrary.SampleGattAttributes.MY_SERVICE
 
 class BLEActivity: AppCompatActivity() {
     private lateinit var bluetoothManager: BluetoothManager

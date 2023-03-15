@@ -1,6 +1,7 @@
 package com.example.btlibrary
 
-object SampleGattAttributes {
+
+object BleUUID {
     private val attributes: HashMap<String, String> = HashMap()
     const val MY_SERVICE = "0000ffe0-0000-1000-8000-00805f9b34fb"
     const val CHARACTERISTIC_A = "0000ffe2-0000-1000-8000-00805f9b34fb"

@@ -2,19 +2,15 @@ package com.example.btlibrary
 
 import android.Manifest
 import android.bluetooth.BluetoothDevice
-import android.bluetooth.le.BluetoothLeScanner
-import android.bluetooth.le.ScanCallback
-import android.bluetooth.le.ScanResult
+import android.bluetooth.le.*
 import android.content.*
 import android.content.pm.PackageManager
-import android.os.Build
-import android.os.Handler
-import android.os.IBinder
-import android.os.Looper
+import android.os.*
 import android.util.Log
 import androidx.activity.result.ActivityResultLauncher
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.MutableLiveData
+import com.example.btlibrary.BleUUID.MY_SERVICE
 
 object BleHelper {
     private val TAG = BleHelper::class.java.name
@@ -22,6 +18,11 @@ object BleHelper {
     private val handler = Handler(Looper.getMainLooper())
     val isScanning = MutableLiveData(false)
     var bluetoothService : BluetoothLeService? = null
+
+    private val scanFilter = arrayListOf<ScanFilter>(ScanFilter.Builder().setServiceUuid(ParcelUuid.fromString(MY_SERVICE)).build())
+    private val scanSettings = ScanSettings.Builder()
+        .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+        .build()
 
     /* Main Functions */
 
@@ -66,7 +67,9 @@ object BleHelper {
                 }, SCAN_PERIOD)
 
                 isScanning.postValue(true)
-                bleScanner.startScan(bleScanCallback)
+
+                // if scan for all devices, use: bleScanner.startScan(bleScanCallback)
+                bleScanner.startScan(scanFilter, scanSettings, bleScanCallback)
             } else {
                 isScanning.postValue(false)
                 bleScanner.stopScan(bleScanCallback)
